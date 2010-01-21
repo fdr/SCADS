@@ -90,9 +90,9 @@ object JavaEngine {
 		val env = new Environment(dbDir, config)
 		logger.info("Environment opened")
 
-		val mbs = ManagementFactory.getPlatformMBeanServer();
-		val mBean = new JEMonitor(dbDir.toString)
-		mbs.registerMBean(mBean, new ObjectName("com.sleepycat:type=JE"))
+		//val mbs = ManagementFactory.getPlatformMBeanServer();
+		//val mBean = new JEMonitor(dbDir.toString)
+		//mbs.registerMBean(mBean, new ObjectName("com.sleepycat:type=JE"))
 
 		val processor = if(cmd.hasOption("zookeeper"))
 		{

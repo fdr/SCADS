@@ -62,6 +62,7 @@ class VersionedWriteAll(namespace: String, key: Field, expectedVersion: Version,
 			n.useConnection((c) => {
 				logger.debug("Attempting to test/set " + rec + " to " + namespace + " on " + n + " with existing version " + ev)
 				try {
+					// kristal:  would instrument here for puts
 					c.test_and_set(namespace, rec, ev)
 				}
 				catch {
