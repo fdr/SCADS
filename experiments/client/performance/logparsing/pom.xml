@@ -2,10 +2,10 @@
 	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>edu.berkeley.cs.scads</groupId>
-	<artifactId>querygen</artifactId>
+	<artifactId>logparsing</artifactId>
 	<packaging>jar</packaging>
 	<version>1.0-SNAPSHOT</version>
-	<name>SCADr Query Generator</name>
+	<name>SCADr Query Generator's Log Parser</name>
 	<parent>
 		<groupId>edu.berkeley.cs.scads</groupId>
 		<artifactId>scads</artifactId>

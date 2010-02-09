@@ -345,9 +345,12 @@ case class SCADrQueryUserByName (val username: String, implicit val env: Environ
 	def queryType: String = "userByName"
 	
 	def execute = {
+		/*
 		//val res = Queries.userByName(username).apply(0).name
 		val res = Queries.userByName(username)
 		res  // bc "block must end in result expression"
+		*/
+		Queries.userByName(username)
 	}
 	
 	override def toString: String = "userByName(" + username + ")"
@@ -357,12 +360,32 @@ case class SCADrQueryUserByEmail (val email: String, implicit val env: Environme
 	def queryType: String = "userByEmail"
 	
 	def execute = {
+		/*
 		val res = Queries.userByEmail(email)
 		res
+		*/
+		Queries.userByEmail(email)
 	}
 	
 	override def toString: String = "userByEmail(" + email + ")"
 }
+
+case class SCADrQueryThoughtstream (val username: String, val numThoughts:Int, implicit val env: Environment) extends SCADrQuery() {
+	def queryType: String = "thoughtstream"
+	
+	def execute = {
+		/*
+		val res = Queries.userByName(username).apply(0).thoughtstream(numThoughts)
+		res
+		*/
+		Queries.userByName(username).apply(0).thoughtstream(numThoughts)
+	}
+	
+	override def toString: String = "thoughtstream(" + username + "," + numThoughts + ")"
+}
+
+
+
 
 /*
 * SCADr Query Generators
@@ -390,6 +413,7 @@ class SimpleSCADrQueryGenerator (
 		mix.sampleQueryType match {
 			case "userByName" => new SCADrQueryUserByName(userByNameParamGenerator.generateParam, env)
 			case "userByEmail" => new SCADrQueryUserByEmail(userByEmailParamGenerator.generateParam, env)
+			case "thoughtstream" => new SCADrQueryThoughtstream(userByNameParamGenerator.generateParam, parameters("thoughtstream")(0).toInt, env)
 			//case _ =>
 		}
 	}

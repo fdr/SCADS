@@ -1,17 +1,3 @@
-//package performance
-//package querygen
-
-/*
-import edu.berkeley.xtrace._
-import edu.berkeley.cs.scads.thrift._
-import edu.berkeley.cs.scads.nodes._
-import edu.berkeley.cs.scads.keys._
-import edu.berkeley.cs.scads.placement._
-import edu.berkeley.cs.scads.client._
-import org.apache.thrift.transport.{TFramedTransport, TSocket}
-import org.apache.thrift.protocol.{TBinaryProtocol,XtBinaryProtocol}
-*/
-
 import edu.berkeley.cs.scads.model._
 import edu.berkeley.cs.scads.thrift._
 
@@ -27,202 +13,181 @@ import querygen._
 object WorkloadRunner {
   	def main(args: Array[String]) {
 	
-		// Kristal's code to generate queries:
-		// Get system properties (ie, cmd line args)
+		// Get cmd line args
+		println("Data parameters:")
+		val numUsers = System.getProperty("numUsers").toInt
+		println("  numUsers=>" + System.getProperty("numUsers") + "<")
+		val thoughtsPerUser = System.getProperty("thoughtsPerUser").toInt
+		println("  thoughtsPerUser=>" + System.getProperty("thoughtsPerUser") + "<")
+		val subsPerUser = System.getProperty("subsPerUser").toInt
+		println("  subsPerUser=>" + System.getProperty("subsPerUser") + "<")
+		val emailDupFactor = System.getProperty("emailDupFactor").toInt
+		println("  emailDupFactor=>" + System.getProperty("emailDupFactor") + "<")
+		val thoughtstreamLength = System.getProperty("thoughtstreamLength").toInt
+		println("  thoughtstreamLength=>" + System.getProperty("thoughtstreamLength") + "<")
 
-		val dbSize = System.getProperty("dbSize").toInt
-		println("dbSize=>" + System.getProperty("dbSize") + "<")
-		val minUserId = System.getProperty("minUserId").toInt
+		println("Experiment parameters:")
+		val numThreads = System.getProperty("numThreads").toInt
+		println("  numThreads=>" + System.getProperty("numThreads") + "<")
+		val mixChoice = System.getProperty("mixChoice")
+		println("  mixChoice=>" + mixChoice + "<")
+		val storageNodeServer = System.getProperty("storageNodeServer")
+		println("  storageNodeServer=>" + storageNodeServer + "<")
+		val zookeeperServerAndPort = System.getProperty("zookeeperServerAndPort")
+		println("  zookeeperServerAndPort=>" + zookeeperServerAndPort + "<")
+
+		/*
+		val minUserId = System.getProperty("minUserId").toInt		// could phase out
 		println("minUserId=>"+System.getProperty("minUserId")+"<")
 		val maxUserId = System.getProperty("maxUserId").toInt
 		println("maxUserId=>"+System.getProperty("maxUserId")+"<")
-		val nIntervals = System.getProperty("nIntervals").toInt
+		*/
+
+		// Disallowed for now... need to fix so it's easier to isolate each interval's corresponding queries & ops
+		/*
+		val nIntervals = System.getProperty("nIntervals").toInt		// could phase out
 		println("nIntervals=>"+System.getProperty("nIntervals")+"<")
+		*/
+
 		val duration = System.getProperty("duration").toInt
-		println("duration=>" + System.getProperty("duration") + "<")
+		println("  duration=>" + System.getProperty("duration") + "s<")
+		var warmupDuration = System.getProperty("warmupDuration").toInt
+		println("  warmupDuration=>" + warmupDuration + "s<")
 		val logPath = System.getProperty("logPath")
-		println("logPath=>" + logPath + "<")
-		val warmup = System.getProperty("warmup")	// true => warm up the jvm by having a 5-min test run first
-		println("warmup=>" + warmup + "<")
+		println("  logPath=>" + logPath + "<")
 
-
-		/*
-		// Set up cluster (in process/locally)
+		// Deploy cluster
 		implicit val env = new Environment
-		env.placement = new TestCluster
-		env.session = new TrivialSession
-		env.executor = new TrivialExecutor
-		*/
-
-		// Configure storage engine
-		Queries.configureStorageEngine(new StorageNode("r21", 9000))  // set responsibility policy -- r21 instead of ip
-
-		// Testing ZooKeptCluster
-		implicit val env = new Environment
-		//env.placement = new ZooKeptCluster("r13:3000")
-		env.placement = new ZooKeptCluster("r15:3000") // need to give this via cmd line arg, not hard coding, so i don't have to recompile if it changes
 		env.session = new TrivialSession
 		env.executor = new TrivialExecutor
 
-		
-		// Populate the db -- in the future, move this to a function
-		/*
-		(1 to 1000).foreach((i) => {
-			val u = new user
-			u.name("user" + i)
-			u.password("secret")
-			u.email("user" + i + "@test.com")
-			u.save
-		})
-		*/
-		//val emails = populateDBwithDupEmails(dbSize, 20 /*hard-coded*/, env)
-		
-		val numUsers = 1000 // hard-coded
-		val emailDup = 20 // hard-coded
+		if (storageNodeServer == null) {
+			println("Setting up cluster in process...")
+			env.placement = new TestCluster
+		} else {
+			println("Setting up full cluster...")
+			Queries.configureStorageEngine(new StorageNode(storageNodeServer, 9000))  // set responsibility policy
+			env.placement = new ZooKeptCluster(zookeeperServerAndPort)
+		}
+		println("Cluster ready.")
 
-		var emails:List[String] = Nil
-		(1 to (numUsers/emailDup)).foreach((i) => {
-			emails = ("user" + i + "@berkeley.edu") :: emails
-		})
-		emails = emails.reverse
-		
-		// better way would be to check if the db is already populated; if no, populate
-		if (dbSize > 0) {
-			(1 to numUsers).foreach((i) => {
-				val u = new user
-				u.name("user" + i)
-				u.password("secret")
-				u.email(emails(i % (numUsers/emailDup)))
-				u.save
-			})
+		val paramMap = getParamMap(numUsers, emailDupFactor, thoughtstreamLength)
+		populateDB(paramMap, emailDupFactor, thoughtsPerUser, subsPerUser)
+
+		var mix:MixVector = null
+		mixChoice match {
+			case "userByName" => mix = WorkloadGenerators.mixUserByName
+			case "userByEmail" => mix = WorkloadGenerators.mixUserByEmail
+			case "thoughtstream" => mix = WorkloadGenerators.mixThoughtstream
+			case _ => mix = WorkloadGenerators.mixUserByName
 		}
 		
-		if (warmup == "true") {
-			println("warming up jvm...")
-			val warmupDuration = 5*60 // 5 min
-			val threads = (minUserId to maxUserId).toList.map((id) => {
-				val agent = new WorkloadAgent(getFlatWorkloadDescriptionForUserByEmail(maxUserId, nIntervals, warmupDuration, emails, env), logPath + "warmup/", id, env)
+		// Warmup
+		if (warmupDuration > 0) {
+			println("Warming up jvm...")
+			//val threads = (minUserId to maxUserId).toList.map((id) => {
+			val threads = (1 to numThreads).toList.map((id) => {	
+				//val agent = new WorkloadAgent(getFlatWorkloadDescriptionForUserByEmail(maxUserId, nIntervals, warmupDuration, emails, env), logPath + "warmup/", id, env)
+				val agent = new WorkloadAgent(WorkloadGenerators.constantWorkload(mix, paramMap, numUsers, 1, List(warmupDuration*1000), env), logPath + "warmup/", id, env)
 				new Thread(agent)
 			})
 
 			for(thread <- threads) thread.start
 			for(thread <- threads) thread.join
-		}
+		} else
+			println("Skipping warmup...")
 		
-		/*
-		// Set up workload -- file must be generated beforehand
-		val workloadFile = System.getProperty("workload")
-		val workload = WorkloadDescription.deserialize(workloadFile)
-		*/
 		// Set up threads
-		// How many?  I have no idea.  Start out just exploring how it seems to work with a few diff #s (eg, 10 threads, 100 threads, 1000 threads)
-		println("starting run...")
-		val threads = (minUserId to maxUserId).toList.map((id) => {
-			//val agent = new WorkloadAgent(new SCADSClient(host,port), workload, id)  // Change this line -- I'll have a different WorkloadAgent, with different params
-			//val agent = new WorkloadAgent("/Users/ksauer/Desktop/", env)
-			//val agent = new WorkloadAgent(getWorkloadDescription(minUserId, maxUserId, nIntervals, env), "/Users/ksauer/Desktop/", id, env)
+		println("Starting run...")
+		//val threads = (minUserId to maxUserId).toList.map((id) => {
+		val threads = (1 to numThreads).toList.map((id) => {	
+			// For now, disallow multiple intervals.  If I decide to phase this back in, I need to insert a pause b/t the intervals (like around 10s long) 
+			// so it's easier to handle the overlap.
+			/*
 			if (nIntervals == 1) {
-				//val agent = new WorkloadAgent(getFlatWorkloadDescriptionForUserByEmail(maxUserId, nIntervals, duration, emails, env), "/Users/ksauer/Desktop/", id, env)
 				val agent = new WorkloadAgent(getFlatWorkloadDescriptionForUserByEmail(maxUserId, nIntervals, duration, emails, env), logPath, id, env)
 				new Thread(agent)
 			} else {
-				//val agent = new WorkloadAgent(getStepWorkloadDescriptionForUserByEmail(minUserId, maxUserId, nIntervals, duration, emails, env), "/Users/ksauer/Desktop/", id, env)
 				val agent = new WorkloadAgent(getStepWorkloadDescriptionForUserByEmail(minUserId, maxUserId, nIntervals, duration, emails, env), logPath, id, env)
 				new Thread(agent)
 			}
+			*/
+			val agent = new WorkloadAgent(WorkloadGenerators.constantWorkload(mix, paramMap, numUsers, 1, List(duration*1000), env), logPath + "run/", id, env)
+			new Thread(agent)
 		})
 		
 		// Run the test
 		for(thread <- threads) thread.start
 		for(thread <- threads) thread.join
-		
-		/*
-		val u1 = new user
-		u1.name("marmbrus")
-		u1.password("pass")
-		u1.email("marmbrus@berkeley.edu")
-		u1.save
-		
-		// Issue a query and print the result
-		val res = Queries.userByName("marmbrus").apply(0).name
-		println()
-		println("ANS:")
-		println(res)
-		println()
-		*/
-		
+
 		System.exit(0)
   	}
 
-/*
-	def populateDBwithDupEmails(numUsers:Int, emailDup:Int, env: Environment): List[String] = {
-		// emailDup => how many users will share each email
+	def populateDB(paramMap:Map[String, List[String]], emailDupFactor:Int, thoughtsPerUser:Int, subsPerUser:Int)(implicit env:Environment) = {
+		println("Checking whether db is populated...")
+		val nodes = env.placement.locate("ent_user", "user1")	// This assumes that db pop => I will have created the "ent_user" ns, and "user1" will have been added
+		val rand = new scala.util.Random()
+		val node = nodes(rand.nextInt(nodes.length))
 
+		val sz = node.useConnection((c) => {
+			c.count_set("ent_user", RangedPolicy.convert((null,null)).get(0))
+		})
+
+		if (sz == 0) {
+			println("DB is NOT populated yet.")
+			println("Adding users & their thoughts...")
+
+			val numUsers = paramMap("userByName").length
+			val numEmails = paramMap("userByEmail").length
+			val thoughtstreamLength = paramMap("thoughtstream")(0)
+			
+			val gen = new SimpleThoughtGenerator(thoughtsPerUser, env)
+			(1 to numUsers).foreach((i) => {
+				// Create user
+				val u = new user
+				u.name(paramMap("userByName")(i-1))
+				u.password("secret")
+				u.email(paramMap("userByEmail")(i % (numUsers/emailDupFactor)))
+				u.save
+
+				gen.generateThoughts(paramMap("userByName")(i-1))
+			})
+			println("Users & thoughts added.")
+			
+			println("Adding subscriptions...")
+
+			val subGen = new SimpleSubscriptionGenerator(paramMap("userByName"), subsPerUser, env)
+			(1 to numUsers).foreach((i) => {
+				subGen.generateSubscriptions(paramMap("userByName")(i-1))
+			})
+
+			println("Finished adding subscriptions.")
+			
+		}
+		println("DB is populated now.")	
+		
+	}
+	
+	def getParamMap(numUsers:Int, emailDupFactor:Int, numThoughts:Int): Map[String, List[String]] = {
+		// Usernames
+		var usernames:List[String] = Nil
+		(1 to numUsers).foreach((i) => {
+			usernames = ("user" + i).toString :: usernames
+		})
+		usernames = usernames.reverse
+		
+		// Emails
+		// emailDupFactor = how many users share each email addr
+		// Useful for "userByEmail" query
 		var emails:List[String] = Nil
-		(1 to (numUsers/emailDup)).foreach((i) => {
+		(1 to (numUsers/emailDupFactor)).foreach((i) => {
 			emails = ("user" + i + "@berkeley.edu") :: emails
 		})
 		emails = emails.reverse
-
-		(1 to numUsers).foreach((i) => {
-			val u = new user
-			u.name("user" + i)
-			u.password("secret")
-			u.email(emails(i % (numUsers/emailDup)))
-			u.save
-		})
 		
-		emails
+		val paramMap = Map("userByName"->usernames, "userByEmail"->emails, "thoughtstream"->List(numThoughts.toString))	// "thoughtstream" also reuses "usernames"
+		paramMap
 	}
-	*/
-
-	// constructs a really basic paramMap
-	// interval duration is hard-coded at 10s
-	def getWorkloadDescription(minUsers:Int, maxUsers:Int, nIntervals:Int, env:Environment): WorkloadDescription = {
-		// mix
-		val mix100 = new MixVector(Map("userByName"->1.0,"b"->0.0,"c"->0.0))
-
-		// parameters
-		var possibleParams = List("user1")
-		(2 to 1000).foreach((i) => {
-			possibleParams = ("user" + i) :: possibleParams
-		})
-		possibleParams = possibleParams.reverse
-
-		val paramMap = Map("userByName"->possibleParams, "b"->List("b"), "c"->List("c"))
-
-		val durations = List.make(nIntervals, 10*1000)		// NOTE THIS IS HARD-CODED at 10s intervals!
-
-		val wd = WorkloadGenerators.stepWorkload(mix100, paramMap, minUsers, maxUsers, nIntervals, durations, env)
-		wd
-	}
-
-	// lets you create a paramMap and pass it in
-	// "duration" is each interval's duration, in seconds (pass it in)
-	def getWorkloadDescription(minUsers:Int, maxUsers:Int, nIntervals:Int, duration:Int, mix:MixVector, paramMap:Map[String, List[String]], env:Environment): WorkloadDescription = {
-		val durations = List.make(nIntervals, duration*1000)
-
-		val wd = WorkloadGenerators.stepWorkload(mix, paramMap, minUsers, maxUsers, nIntervals, durations, env)
-		wd
-	}
-	
-	def getStepWorkloadDescriptionForUserByEmail(minUsers:Int, maxUsers:Int, nIntervals:Int, duration:Int, emails:List[String], env:Environment): WorkloadDescription = {
-		val mix = new MixVector(Map("userByEmail"->1.0, "userByName"->0.0))
-		val paramMap = Map("userByEmail"->emails, "userByName"->List("name"))
-		
-		val wd = getWorkloadDescription(minUsers, maxUsers, nIntervals, duration, mix, paramMap, env)
-		wd
-	}
-	
-	def getFlatWorkloadDescriptionForUserByEmail(nUsers:Int, nIntervals:Int, duration:Int, emails:List[String], env:Environment): WorkloadDescription = {
-		val mix = new MixVector(Map("userByEmail"->1.0, "userByName"->0.0))
-		val paramMap = Map("userByEmail"->emails, "userByName"->List("name"))
-		val durations = List.make(nIntervals, duration*1000)  // duration is in s
-		
-		val wd = WorkloadGenerators.constantWorkload(mix, paramMap, nUsers, nIntervals, durations, env)
-		wd
-	}
-
 }
 
 // "path" ends in "/"
@@ -246,54 +211,15 @@ class WorkloadAgent(workload:WorkloadDescription, path:String, userID:Int, env:E
 
 		(new File(path + "logs/")).mkdirs()
 		threadlogf = new FileWriter( new java.io.File(path+"logs/"+thread_name+".log"), true )
-		//threadlog("starting workload generation. thread:"+thread_name+"  userID="+userID)
 		threadlog("Thread Name, Query Type, Query Param, Query Result, Start (ms), End (ms), Latency (ms)")
 		
 		val thinkTime = 10
-		
-		/*
-		try {
-
-			// Try having each thread send a query to the db
-			val rdm = new RandomUser
-			rdm.setNumUsers(1000)
-			
-			// Redundant, but just to get correct type for "name"
-			var idx = rdm.getRandomUser
-			var param = "user" + idx
-			var name = Queries.userByName(param).apply(0).name
-			
-			(1 to 5).foreach((i) => {
-				// Set up request
-				idx = rdm.getRandomUser
-				param = "user" + idx
-
-				startt = System.nanoTime()
-				startt_ms = System.currentTimeMillis()
-
-				name = Queries.userByName(param).apply(0).name
-				//threadlog("User " + idx + ": " + Queries.userByName("user" + idx).apply(0).name)
-
-				endt = System.nanoTime()
-				endt_ms = System.currentTimeMillis()
-				latency = endt-startt
-
-				threadlog(thread_name +"," + "userByName" + "," + param + "," + name + "," + startt_ms + "," + endt_ms + "," + (latency/1000000.0))
-
-				threadlog("thinking: "+thinkTime + "\n")
-				Thread.sleep(thinkTime)
-			})
-		} catch {
-			case e: Exception => threadlog("got an exception. \n"+stack2string(e))
-		}
-		*/
 		
 		var currentIntervalDescriptionI = 0
 		var currentIntervalDescription = workload.workload(currentIntervalDescriptionI)
 		val workloadStart = System.currentTimeMillis()
 		var nextIntervalTime = workloadStart + currentIntervalDescription.duration
 
-		//var result = new scala.collection.mutable.ListBuffer[String]() // "request,threads,types,start,end,latency\n"
 		var requestI = 0;
 		var running = true;
 
@@ -305,41 +231,19 @@ class WorkloadAgent(workload:WorkloadDescription, path:String, userID:Int, env:E
 				requestI += 1
 
 				// create the request
-				//val request = currentIntervalDescription.requestGenerator.generateRequest(client, System.currentTimeMillis-workloadStart)
 				val query = currentIntervalDescription.queryGenerator.generateQuery
-				/*
-				val reportProb = if (request.reqType=="get") getReportProbability
-								else if (request.reqType=="put") putReportProbability
-								else 0.0
-				severity = if (WorkloadDescription.rnd.nextDouble < reportProb) {1} else {6}
-
-				XTraceContext.startTraceSeverity(thread_name,"Initiated: LocalRequest",severity,"RequestID: "+requestI)
-				*/
 
 				try {
-					/*
-					startt = System.nanoTime()
-					startt_ms = System.currentTimeMillis()
-					
-					//request.execute
-					query.execute
-					
-					endt = System.nanoTime()
-					endt_ms = System.currentTimeMillis()
-					latency = endt-startt
-					//result += (localIP+","+thread_name+","+requestI+","+request.reqType+","+startt_ms+","+endt_ms+","+(latency/1000000.0)+"\n")
-					//threadlog("executed: "+request.toString+"    latency="+(latency/1000000.0))
-					threadlog(thread_name + " executed: " + query.toString + ", start=" + startt_ms + ", end=" + endt_ms + ", latency=" + (latency/1000000.0))
-					//threadlog("executed: " + query.toString + ", start=" + startt_ms + ", end=" + endt_ms + ", latency=" + (latency/1000000.0))
-					//threadlog(thread_name +"," + "userByName" + "," + param + "," + name + "," + startt_ms + "," + endt_ms + "," + (latency/1000000.0))
-					*/
+					println(new java.util.Date() + ": " + thread_name + " starting: " + query.toString)
 
-					// Just use nanoTime; don't make the extra syscall
 					startt = System.nanoTime()
 					query.execute
 					endt = System.nanoTime()
 					
 					latency = endt - startt
+					
+					println(new java.util.Date() + ": " + thread_name + " executed: " + query.toString + ", start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+					println(new java.util.Date() + ": " + thread_name + " ending: " + query.toString)
 					
 					threadlog(thread_name + " executed: " + query.toString + ", start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 					
@@ -347,26 +251,11 @@ class WorkloadAgent(workload:WorkloadDescription, path:String, userID:Int, env:E
 					case e: Exception => threadlog("got an exception. \n"+stack2string(e))
 				}
 
-				//XTraceContext.clearThreadContext()
-
-				// periodically flush log to disk and clear result list
-				/*
-				if (requestI%5000==0) {
-					if (logwriter != null) {
-						logwriter.write(result.mkString)
-						logwriter.flush()
-					}
-					//result = result.remove(p=>true)
-					result = new scala.collection.mutable.ListBuffer[String]()
-				}
-				*/
-
 				threadlog("thinking: "+workload.thinkTimeMean)
 				Thread.sleep(workload.thinkTimeMean)
 
 			} else {
 				// I'm inactive, sleep for a while
-				//println("inactive, sleeping 1 second")
 				threadlog("PASSIVE, SLEEPING 1000ms")
 				Thread.sleep(1000)
 			}
@@ -375,7 +264,7 @@ class WorkloadAgent(workload:WorkloadDescription, path:String, userID:Int, env:E
 			val currentTime = System.currentTimeMillis()
 			while ( currentTime > nextIntervalTime && running ) {
 				currentIntervalDescriptionI += 1
-				println("interval "+currentIntervalDescriptionI)
+				//println("interval "+currentIntervalDescriptionI)
 				if (currentIntervalDescriptionI < workload.workload.length) {
 					currentIntervalDescription = workload.workload(currentIntervalDescriptionI)
 					nextIntervalTime += currentIntervalDescription.duration
@@ -387,8 +276,6 @@ class WorkloadAgent(workload:WorkloadDescription, path:String, userID:Int, env:E
 		}
 
 		threadlog("done")
-
-		//if (logwriter != null) { logwriter.write(result.mkString); logwriter.flush(); logwriter.close() }
 		threadlogf.close()
 		
 	}

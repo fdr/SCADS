@@ -49,7 +49,7 @@ object ReadRandomPolicy extends ReadPolicy {
 		
 		//println(new java.util.Date() + ": executed: get(" + namespace + ", " + key + "), start=" + startt_ms + ", end=" + endt_ms + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": executed: get(" + namespace + ", " + key + "), start=" + (startt*1000000.0) + ", end=" + (endt*1000000.0) + ", latency=" + (latency/1000000.0))
-		println(new java.util.Date() + ": " + threadName + " executed: get(" + namespace + "," + key + "), start=" + (startt) + ", end=" + (endt) + ", latency=" + (latency/1000000.0))
+		println(new java.util.Date() + ": " + threadName + " executed: get(" + namespace + "," + key + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		// End instrumentation
 
 		makeTuple(rec, keyClass, versioned)
@@ -80,7 +80,7 @@ object ReadRandomPolicy extends ReadPolicy {
 
 		//println(new java.util.Date() + ": executed: get_set(" + namespace + "), start=" + startt_ms + ", end=" + endt_ms + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": executed: get_set(" + namespace + "), start=" + (startt*1000000.0) + ", end=" + (endt*1000000.0) + ", latency=" + (latency/1000000.0))
-		println(new java.util.Date() + ": " + threadName + " executed: get_set(" + namespace + "), start=" + (startt) + ", end=" + (endt) + ", latency=" + (latency/1000000.0))
+		println(new java.util.Date() + ": " + threadName + " executed: get_set(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		// End instrumentation
 
 

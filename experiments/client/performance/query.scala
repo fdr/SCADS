@@ -1,28 +1,197 @@
-//import edu.berkeley.cs.scads.model.Environment
-//import edu.berkeley.cs.scads.model.{TrivialExecutor,TrivialSession}
-//import edu.berkeley.cs.scads.TestCluster
-import edu.berkeley.cs.scads.model._
-import edu.berkeley.cs.scads.thrift._
+import edu.berkeley.cs.scads.model.Environment
+import edu.berkeley.cs.scads.model.{TrivialExecutor,TrivialSession}
+import edu.berkeley.cs.scads.model.TestCluster
 import org.apache.log4j._
 import org.apache.log4j.Level._
-import querygen._
+import edu.berkeley.cs.scads.thrift._
 
-import java.lang._
+import querygen.RandomUser
 
-/*
+//import java.util._
+
+//import java.lang._
+
+//println("hi")
+
 implicit val env = new Environment
 env.placement = new TestCluster
 env.session = new TrivialSession
 env.executor = new TrivialExecutor
+
+/*
+val u1 = new user
+u1.name("marmbrus")
+u1.password("pass")
+u1.email("marmbrus@berkeley.edu")
+u1.save
+
+val u2 = new user
+u2.name("kristal")
+u2.password("pass")
+u2.email("kristal@berkeley.edu")
+u2.save
+
+
+val res = Queries.userByName("marmbrus").apply(0)
+println()
+println("ANS:")
+println(res)
+println()
+
+val res2 = Queries.userByName("kristal").apply(0).name
+println()
+println("ANS:")
+println(res2)
+println()
+
+
+
+val sub = new subscription
+sub.approved(true)
+sub.owner("marmbrus")
+sub.target("kristal")
+sub.save
+
+val time = System.nanoTime().toInt
+val th = new thought
+th.owner("kristal")
+th.thought("i love research")
+th.timestamp(time)
+th.save
+
+val h = new hashTag
+h.name("cal")
+h.referringThought(th)
+h.save
+
+println(u2.myThoughts(1))
+
+println(this)
 */
 
+println("Checking whether db is populated...")
+val nodes2 = env.placement.locate("ent_user", "user1")	// This assumes that db pop => I will have created the "ent_user" ns, and "user1" will have been added
+val rand2 = new scala.util.Random()
+val node2 = nodes2(rand2.nextInt(nodes2.length))
+
+
+
+val sz2 = node2.useConnection((c) => {
+	c.count_set("ent_user", RangedPolicy.convert((null,null)).get(0))
+})
+
+println("Result = " + sz2)  // if > 0, db is populated
+
+val numUsers=10
+val numSubs = 2
+
+if (sz2 == 0) {
+	println("DB is NOT populated yet.")
+
+	println("Adding users & their thoughts...")
+	// Create data so I can test "thoughtstream" query
+	(1 to numUsers).foreach((i) => {
+		// Create user
+		val u = new user
+		u.name("user" + i)
+		u.password("secret")
+		u.email("user" + i + "@test.com")
+		u.save
+
+		val sTG = new SimpleThoughtGenerator(20, env)
+		sTG.generateThoughts("user" + i)
+	})
+
+	println("Checking whether db is populated...")
+	val nodes = env.placement.locate("namespace", "key")
+	val rand = new scala.util.Random()
+	val node = nodes(rand.nextInt(nodes.length))
+
+	val sz = node.useConnection((c) => {
+		c.count_set("ent_user", RangedPolicy.convert((null,null)).get(0))
+	})
+
+	println("Result = " + sz)  // if > 0, db is populated
+}
+println("DB is populated now.")
+
+
+
+// Add subscriptions (do after creating all users)
+println("Adding subscriptions...")
+var usernames:List[String] = Nil
+(1 to numUsers).foreach((i) => {
+	usernames = ("user" + i).toString :: usernames
+})
+val gen = new SimpleSubscriptionGenerator(usernames, numSubs, env)
+(1 to numUsers).foreach((i) => {
+	gen.generateSubscriptions("user" + i)
+})
+println("Finished adding subscriptions.")
+
+println(Queries.userByName("user6").apply(0).thoughtstream(30))
+
+/*
+println("Adding subscriptions...")
+val rdm = new RandomUser(numUsers)
+
+(1 to numUsers).foreach((i) => {
+	var subs:List[Int] = Nil
+	
+	var j = 0
+	//(1 to 10).foreach((j) => {
+	
+	var first = true
+		
+	while (j < 10) {
+		val sub = new subscription
+		sub.approved(true)
+		sub.owner("user" + i)
+		val usernum = rdm.getRandomUser
+
+		if (first || !subs.exists(n => n == usernum)) {
+			first = false
+			subs = usernum :: subs
+			sub.target("user" + usernum)
+			sub.save
+			j = j+1
+		}
+	//})
+	}
+})
+
+println("Finished adding subscriptions...")
+
+//println(Queries.userByName("user6").apply(0).thoughtstream(30))
+val q = new SCADrQueryThoughtstream("user6", 10, env)
+val start = System.nanoTime()
+//println(q.execute)
+val res = q.execute
+val end = System.nanoTime()
+val latency = end-start
+println("start=" + start + ", end=" + end + ", latency=" + (latency/1000000.0) + "ms")
+println(res)
+println(q.toString)
+println(q.queryType)
+*/
+
+/*
+println("Old way:")
+val s = System.nanoTime()
+val r = Queries.userByName("user6").apply(0).thoughtstream(10)
+val e = System.nanoTime()
+val l = e - s
+println("start=" + s + ", end=" + e + ", latency=" + (l/1000000.0) + "ms")
+println(r)
+*/
+
+/*
 object ClusterTester extends Application {
 	println("enter main")
 	
 	// Configure storage engine
 	//Queries.configureStorageEngine(new StorageNode("r21", 9000))  // set responsibility policy -- r21 instead of ip
 
-	/*
 	// Testing ZooKeptCluster
 	implicit val env = new Environment
 	env.placement = new ZooKeptCluster("r13:3000")
@@ -40,8 +209,8 @@ object ClusterTester extends Application {
 	println("ANS:")
 	println(res)
 	println()
-	*/
 }
+*/
 
 
 
