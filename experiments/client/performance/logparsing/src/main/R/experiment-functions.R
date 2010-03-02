@@ -1,4 +1,7 @@
-# logPath shouldn't end in "/"
+###  Note:  all path args should not end in "/"
+
+
+
 getSingleDataset = function(startingThread, endingThread, logPath) {
 	print(startingThread)
 	data = as.data.frame(read.csv(file=paste(logPath,"/Thread-", startingThread, ".csv", sep="")))
@@ -31,7 +34,7 @@ getValidationStats = function(startingThread, endingThread, basePath, numValidat
 	
 	for (j in 1:numValidationRuns) {
 		print(paste("Reading in validation data from run ", j, "...", sep=""))
-		vdata = getSingleDataset(startingThread, endingThread, paste(basePath,"/validation",j,"-logs", sep=""))
+		vdata = getSingleDataset(startingThread, endingThread, paste(basePath,"/validation-logs/validation",j,"-logs", sep=""))
 		validationStats[j,"latencyQuantile"] = quantile(vdata$latency_ms[vdata$opLevel==3], latencyQuantile)
 		validationStats[j,"numQueries"] = length(which(vdata$opLevel==3))
 	}
@@ -43,10 +46,11 @@ getValidationStats = function(startingThread, endingThread, basePath, numValidat
 }
 
 
-# basePath shouldn't end in "/"
 createAndSaveThoughtstreamOpHistograms = function(basePath) {
+	print("Loading training data...")
 	load(file=paste(basePath, "/trainingData.RData", sep=""))  # => "data"
 	
+	print("Creating histograms...")
 	# #breaks may be an interesting thing to adjust.  What if I had 50 breaks per hist?  10?
 	h1 = hist(data[data$opLevel == 2 & data$opType == 1,"latency_ms"], breaks=25)
 	h3 = hist(data[data$opLevel == 2 & data$opType == 3,"latency_ms"], breaks=25)
@@ -57,11 +61,15 @@ createAndSaveThoughtstreamOpHistograms = function(basePath) {
 	h8 = hist(data[data$opLevel == 2 & data$opType == 8,"latency_ms"], breaks=20)
 	h9 = hist(data[data$opLevel == 2 & data$opType == 9,"latency_ms"], breaks=20)
 	
+	print("Saving histograms...")
 	save(h1, h3, h4, h5, h6, h7, h8, h9, file=paste(basePath,"/histograms.RData", sep=""))
 }
 
+## TODO:  createAndSaveUserByEmailHistograms, createAndSaveUserByNameHistograms
 
-# Automatically sets 
+
+## DEPRECATED
+## Note more general version which follows.
 getPredictedThoughtstreamQueryLatencyQuantiles = function(numSampleSets, basePath, latencyQuantile) {
 	load(file=paste(basePath, "/histograms.RData", sep=""))  # => histograms
 	
@@ -91,6 +99,84 @@ getPredictedThoughtstreamQueryLatencyQuantiles = function(numSampleSets, basePat
 	save(predictedQueryLatencyQuantiles, file=paste(basePath,"/predictedStats.RData", sep=""))
 		
 	return(predictedQueryLatencyQuantiles)
+}
+
+
+# queryType \in {"thoughtstream", "userByEmail", "userByName"}
+getPredictedQueryLatencyQuantiles = function(queryType, numSampleSets, basePath, latencyQuantile) {
+	predictedQueryLatencyQuantiles = matrix(nrow=1,ncol=numSampleSets)
+	
+	load(file=paste(basePath, "/validationStats.RData", sep="")) # => validationStats
+	numSamplesPerSet = floor(mean(validationStats[,"numQueries"]))
+	print(paste("Using", numSamplesPerSet, "samples per set."))
+
+	for (j in 1:numSampleSets) {
+		print(paste("Sample Set", j))
+		
+		if (queryType == "thoughtstream") {
+			samples=thoughtstreamSampler(basePath, j, numSamplesPerSet)
+		} else if (queryType == "userByEmail") {
+			samples=userByEmailSampler(basePath, j, numSamplesPerSet)
+		} else if (queryType == "userByName") {
+			samples=userByNameSampler(basePath, j, numSamplesPerSet)
+		} else {
+			print("Incorrect queryType specified.")
+		}
+			
+
+		predictedQueryLatencyQuantiles[j]=quantile(samples, latencyQuantile)	}
+		
+	save(predictedQueryLatencyQuantiles, file=paste(basePath,"/predictedStats.RData", sep=""))
+		
+	return(predictedQueryLatencyQuantiles)
+}
+
+
+thoughtstreamSampler = function(basePath, sampleID, numSamples) {
+	load(file=paste(basePath, "/histograms.RData", sep=""))  # => histograms
+	
+	samples=matrix(data=0, nrow=1, ncol=numSamples)
+
+	for (i in 1:numSamples) {
+		samples[i] = samples[i] + sum(sample(h1$mids, 2, replace=TRUE, prob=h1$density))
+		samples[i] = samples[i] + sample(h3$mids, 1, replace=TRUE, prob=h3$density)
+		samples[i] = samples[i] + sum(sample(h4$mids, 2, replace=TRUE, prob=h4$density))
+		samples[i] = samples[i] + sample(h5$mids, 1, replace=TRUE, prob=h5$density)
+		samples[i] = samples[i] + sum(sample(h6$mids, 5, replace=TRUE, prob=h6$density))
+		samples[i] = samples[i] + sample(h7$mids, 1, replace=TRUE, prob=h7$density)
+		samples[i] = samples[i] + sample(h8$mids, 1, replace=TRUE, prob=h8$density)
+		samples[i] = samples[i] + sample(h9$mids, 1, replace=TRUE, prob=h9$density)
+	}
+
+	save(samples, file=paste(basePath,"/sample", sampleID,".RData",sep=""))
+
+	return(samples)
+}
+
+## TODO:  userByEmailSampler, userByNameSampler
+
+
+## Note: just for testing
+testSwitch = function(queryType) {
+	if(queryType == "thoughtstream") {
+		print("thoughtstream")
+	} else if (queryType == "userByEmail") {
+		print("userByEmail")
+	} else if (queryType == "userByName") {
+		print("userByName")
+	} else {
+		print("no")
+	}	
+}
+
+
+# Q:  is this a good way to measure error?  Could ask PB then MJ.
+getPredictionError = function(basePath) {
+	load(file=paste(basePath,"/validationStats.RData",sep=""))  # => validationStats
+	load(file=paste(basePath,"/predictedStats.RData",sep=""))   # => predictedQueryLatencyQuantiles
+	
+	error = abs(mean(validationStats[,"latencyQuantile"]) - mean(predictedQueryLatencyQuantiles))/mean(validationStats[,"latencyQuantile"])
+	return(error)
 }
 
 
