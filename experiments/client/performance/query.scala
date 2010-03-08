@@ -18,6 +18,37 @@ env.placement = new TestCluster
 env.session = new TrivialSession
 env.executor = new TrivialExecutor
 
+// Testing thought generation w/ hash tags
+
+val numHashTags=5	// per thought; max = 10
+
+val numDistinctHashTags = 10
+var hashTags:List[String] = Nil
+
+(1 to numDistinctHashTags).foreach((i) => {
+	hashTags = ("tag" + i).toString :: hashTags
+})
+hashTags = hashTags.reverse
+
+val hashTagGenerator = new SimpleHashTagGenerator(numHashTags, hashTags, env)
+
+val numThoughtsPerUser = 20
+val thoughtGenerator = new SimpleThoughtGeneratorWithHashTags(numThoughtsPerUser, hashTagGenerator, env)
+
+val numUsers = 100
+(1 to numUsers).foreach((i) => {
+	// Create user
+	val u = new user
+	u.name("user" + i)
+	u.password("secret")
+	u.email("user" + i + "@test.com")
+	u.save
+
+	thoughtGenerator.generateThoughts("user" + i)
+})
+
+println(Queries.thoughtsByHashTag("tag1",10))
+
 /*
 val u1 = new user
 u1.name("marmbrus")
@@ -69,6 +100,7 @@ println(u2.myThoughts(1))
 println(this)
 */
 
+/*
 println("Checking whether db is populated...")
 val nodes2 = env.placement.locate("ent_user", "user1")	// This assumes that db pop => I will have created the "ent_user" ns, and "user1" will have been added
 val rand2 = new scala.util.Random()
@@ -130,6 +162,7 @@ val gen = new SimpleSubscriptionGenerator(usernames, numSubs, env)
 println("Finished adding subscriptions.")
 
 println(Queries.userByName("user6").apply(0).thoughtstream(30))
+*/
 
 /*
 println("Adding subscriptions...")

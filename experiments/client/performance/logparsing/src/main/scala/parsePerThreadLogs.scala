@@ -56,6 +56,7 @@ object ParsePerThreadLogs extends Application {
 					case "userByName" => opLevel=QUERY; opType=1
 					case "userByEmail" => opLevel=QUERY; opType=2
 					case "thoughtstream" => opLevel=QUERY; opType=3
+					case "thoughtsByHashTag" => opLevel=Query; opType=4
 				}
 				
 				val start = line.split(", ")(1).split("=")(1)

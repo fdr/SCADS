@@ -16,6 +16,24 @@ class SimpleThoughtGenerator (val numThoughts:Int, implicit val env:Environment)
 	}
 }
 
+class SimpleThoughtGeneratorWithHashTags (
+	val numThoughts:Int, 
+	val hashTagGenerator:HashTagGenerator, 
+	implicit val env:Environment
+) extends ThoughtGenerator {
+	def generateThoughts(username:String) = {
+		(1 to numThoughts).foreach((i) => {
+			val th = new thought
+			th.owner(username)
+			th.thought("thought")
+			th.timestamp(System.currentTimeMillis().toInt)  // TODO:  this doesn't give the right time.  Replace with integers that count up.
+			th.save
+			
+			hashTagGenerator.assignHashTags(th)
+		})
+	}
+}
+
 /*
 class VariableNumThoughtsThoughtGenerator (val histogram:Histogram, implicit val env:Environment) extends ThoughtGenerator {
 	def generateThoughts(username:String) = {

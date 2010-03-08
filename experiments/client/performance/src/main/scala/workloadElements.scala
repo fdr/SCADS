@@ -370,7 +370,7 @@ case class SCADrQueryUserByEmail (val email: String, implicit val env: Environme
 	override def toString: String = "userByEmail(" + email + ")"
 }
 
-case class SCADrQueryThoughtstream (val username: String, val numThoughts:Int, implicit val env: Environment) extends SCADrQuery() {
+case class SCADrQueryThoughtstream (val username: String, val numThoughts: Int, implicit val env: Environment) extends SCADrQuery {
 	def queryType: String = "thoughtstream"
 	
 	def execute = {
@@ -384,7 +384,15 @@ case class SCADrQueryThoughtstream (val username: String, val numThoughts:Int, i
 	override def toString: String = "thoughtstream(" + username + "," + numThoughts + ")"
 }
 
-
+case class SCADrQueryThoughtsByHashTag (val tag: String, val numThoughts: Int, implicit val env: Environment) extends SCADrQuery {
+	def queryType: String = "thoughtsByHashTag"
+	
+	def execute = {
+		Queries.thoughtsByHashTag(tag, numThoughts)
+	}
+	
+	override def toString: String = "thoughtsByHashTag(" + tag + "," + numThoughts + ")"
+}
 
 
 /*
@@ -405,15 +413,21 @@ class SimpleSCADrQueryGenerator (
 	// parameters:  each query type has its own list of possible parameters
 	val userByNameParamGenerator = new UniformParamGenerator(parameters("userByName"))
 	val userByEmailParamGenerator = new UniformParamGenerator(parameters("userByEmail"))
+	val thoughtsByHashTagParamGenerator = new UniformParamGenerator(parameters("thoughtsByHashTag"))
 	
 	// add on as I have classes for more queries implemented -- will have more param generators and more alternatives
 	// in the "match" stm
 	
 	def generateQuery: SCADrQuery = {
+		val numThoughtsToDisplay = parameters("thoughtstream")(0).toInt
+		
 		mix.sampleQueryType match {
 			case "userByName" => new SCADrQueryUserByName(userByNameParamGenerator.generateParam, env)
 			case "userByEmail" => new SCADrQueryUserByEmail(userByEmailParamGenerator.generateParam, env)
-			case "thoughtstream" => new SCADrQueryThoughtstream(userByNameParamGenerator.generateParam, parameters("thoughtstream")(0).toInt, env)
+			case "thoughtstream" => new SCADrQueryThoughtstream(userByNameParamGenerator.generateParam, 
+				numThoughtsToDisplay, env)
+			case "thoughtsByHashTag" => new SCADrQueryThoughtsByHashTag(thoughtsByHashTagParamGenerator.generateParam,
+				numThoughtsToDisplay, env)
 			//case _ =>
 		}
 	}
