@@ -1,3 +1,6 @@
+# 3.2.10  
+# Goal: predict thoughtstream's 99th percentile latency using its own op models.
+
 # Initialize experiment params
 startingThread=51
 endingThread=100

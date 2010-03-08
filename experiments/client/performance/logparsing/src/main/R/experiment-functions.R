@@ -65,7 +65,32 @@ createAndSaveThoughtstreamOpHistograms = function(basePath) {
 	save(h1, h3, h4, h5, h6, h7, h8, h9, file=paste(basePath,"/histograms.RData", sep=""))
 }
 
-## TODO:  createAndSaveUserByEmailHistograms, createAndSaveUserByNameHistograms
+
+createAndSaveUserByEmailOpHistograms = function(basePath) {
+	print("Loading training data...")
+	load(file=paste(basePath, "/trainingData.RData", sep=""))  # => "data"
+	
+	print("Creating histograms...")
+	h2 = hist(data[data$opLevel == 2 & data$opType == 2,"latency_ms"], breaks=25)
+	h3 = hist(data[data$opLevel == 2 & data$opType == 3,"latency_ms"], breaks=25)
+	h6 = hist(data[data$opLevel == 2 & data$opType == 6,"latency_ms"], breaks=25)
+
+	print("Saving histograms...")
+	save(h2, h3, h6, file=paste(basePath,"/histograms.RData", sep=""))
+}
+
+
+createAndSaveUserByNameOpHistograms = function(basePath) {
+	print("Loading training data...")
+	load(file=paste(basePath, "/trainingData.RData", sep=""))  # => "data"
+	
+	print("Creating histograms...")
+	h1 = hist(data[data$opLevel == 2 & data$opType == 1,"latency_ms"], breaks=25)
+	h6 = hist(data[data$opLevel == 2 & data$opType == 6,"latency_ms"], breaks=25)
+
+	print("Saving histograms...")
+	save(h1, h6, file=paste(basePath,"/histograms.RData", sep=""))
+}
 
 
 ## DEPRECATED
@@ -132,6 +157,8 @@ getPredictedQueryLatencyQuantiles = function(queryType, numSampleSets, basePath,
 }
 
 
+# Samplers produce & save a single sample set.
+# Called from "getPredictedQueryLatencyQuantiles" function.
 thoughtstreamSampler = function(basePath, sampleID, numSamples) {
 	load(file=paste(basePath, "/histograms.RData", sep=""))  # => histograms
 	
@@ -153,7 +180,39 @@ thoughtstreamSampler = function(basePath, sampleID, numSamples) {
 	return(samples)
 }
 
-## TODO:  userByEmailSampler, userByNameSampler
+
+userByEmailSampler = function(basePath, sampleID, numSamples) {
+	load(file=paste(basePath, "/histograms.RData", sep=""))  # => histograms
+	
+	samples=matrix(data=0, nrow=1, ncol=numSamples)
+
+	for (i in 1:numSamples) {
+		samples[i] = samples[i] + sample(h2$mids, 1, replace=TRUE, prob=h2$density)
+		samples[i] = samples[i] + sample(h3$mids, 1, replace=TRUE, prob=h3$density)
+		samples[i] = samples[i] + sample(h6$mids, 1, replace=TRUE, prob=h6$density)
+	}
+
+	save(samples, file=paste(basePath,"/sample", sampleID,".RData",sep=""))
+
+	return(samples)
+}
+
+
+userByNameSampler = function(basePath, sampleID, numSamples) {
+	load(file=paste(basePath, "/histograms.RData", sep=""))  # => histograms
+	
+	samples=matrix(data=0, nrow=1, ncol=numSamples)
+
+	for (i in 1:numSamples) {
+		samples[i] = samples[i] + sample(h1$mids, 1, replace=TRUE, prob=h1$density)
+		samples[i] = samples[i] + sample(h6$mids, 1, replace=TRUE, prob=h6$density)
+	}
+
+	save(samples, file=paste(basePath,"/sample", sampleID,".RData",sep=""))
+
+	return(samples)
+	
+}
 
 
 ## Note: just for testing

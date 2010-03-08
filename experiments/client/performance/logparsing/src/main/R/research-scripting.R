@@ -356,7 +356,7 @@ avgNumQueriesPerValidationRun = floor(mean(validationNumQueries))
 avgNumQueriesPerValidationRun
 
 ###
-# Get histograms for userByEmail's ops
+# Get histograms for userByName's ops
 h1 = hist(data[data$opLevel == 2 & data$opType == 1,"latency_ms"], breaks=25)
 h6 = hist(data[data$opLevel == 2 & data$opType == 6,"latency_ms"], breaks=25)
 

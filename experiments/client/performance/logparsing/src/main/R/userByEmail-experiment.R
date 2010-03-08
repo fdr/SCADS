@@ -1,0 +1,21 @@
+# 3.2.10  
+# Goal: predict thoughtstream's 99th percentile latency using its own op models.
+
+basePath="/work/ksauer/2.23.10-userByEmail-experiment"
+
+# Initialize experiment params
+startingThread=51
+endingThread=100
+numValidationRuns=10
+latencyQuantile=0.99
+queryType="userByEmail"
+numSampleSets=numValidationRuns
+
+# Save to paramFile
+save(startingThread, endingThread, numValidationRuns, latencyQuantile, queryType, numSampleSets, file=paste(basePath, "/paramFile.RData", sep=""))
+
+
+# Run experiment
+source(file="queryExperiment1.R")
+error = queryExperiment1(basePath)
+print(error)
