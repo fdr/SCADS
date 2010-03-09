@@ -4,7 +4,7 @@
 # $2:  output dir
 # $3:  starting thread of interest
 # $4:  ending thread of interest
-# $5:  num threads
+# $5:  num threads -- DEPRECATED FOR R CLUSTER VERSION
 
 mkdir -p $2
 

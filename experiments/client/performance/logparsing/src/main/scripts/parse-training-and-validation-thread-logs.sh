@@ -1,3 +1,5 @@
+## NOTE:  this version is for my desktop
+
 # Parse per-thread logs from training & validation runs using ParsePerThreadLogs
 #
 # $1:  experiment directory
