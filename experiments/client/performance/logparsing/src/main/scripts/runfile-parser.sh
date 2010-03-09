@@ -12,5 +12,5 @@ for i in `seq $3 $4`;
 #for i in {$3..$4};
 #for i in `jot $5 $3 $4`;
 do echo Creating file for Thread-$i;
-fgrep Thread-$i $1 > $2/Thread-$i.log;
+fgrep -a Thread-$i $1 > $2/Thread-$i.log;
 done
