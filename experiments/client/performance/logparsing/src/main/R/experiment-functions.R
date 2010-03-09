@@ -234,7 +234,8 @@ getPredictionError = function(basePath) {
 	load(file=paste(basePath,"/validationStats.RData",sep=""))  # => validationStats
 	load(file=paste(basePath,"/predictedStats.RData",sep=""))   # => predictedQueryLatencyQuantiles
 	
-	error = abs(mean(validationStats[,"latencyQuantile"]) - mean(predictedQueryLatencyQuantiles))/mean(validationStats[,"latencyQuantile"])
+	#error = abs(mean(validationStats[,"latencyQuantile"]) - mean(predictedQueryLatencyQuantiles))/mean(validationStats[,"latencyQuantile"])
+	error = abs(median(validationStats[,"latencyQuantile"]) - median(predictedQueryLatencyQuantiles))/median(validationStats[,"latencyQuantile"])
 	return(error)
 }
 

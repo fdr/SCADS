@@ -25,3 +25,24 @@ numQueries
 getValidationStats(startingThread, endingThread, basePath, numValidationRuns, latencyQuantile)
 getPredictedQueryLatencyQuantiles(queryType, numSampleSets, basePath, latencyQuantile)
 getPredictionError(basePath)
+
+
+
+## VERSION 2:  using "queryExperiment1" function
+basePath="/work/ksauer/2.12.10-thoughtstream-experiment"
+
+# Initialize experiment params
+startingThread=51
+endingThread=100
+numValidationRuns=10
+latencyQuantile=0.99
+queryType="thoughtstream"
+numSampleSets=numValidationRuns
+
+# Save to paramFile
+save(startingThread, endingThread, numValidationRuns, latencyQuantile, queryType, numSampleSets, file=paste(basePath, "/paramFile.RData", sep=""))
+
+# Run experiment
+#source(file="queryExperiment1.R")
+error = queryExperiment1(basePath)
+print(error)

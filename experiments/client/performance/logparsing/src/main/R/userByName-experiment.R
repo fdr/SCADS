@@ -1,14 +1,14 @@
 # 3.2.10  
-# Goal: predict userByEmail's 99th percentile latency using its own op models.
+# Goal: predict userByName's 99th percentile latency using its own op models.
 
-basePath="/work/ksauer/2.23.10-userByEmail-experiment"
+basePath="/work/ksauer/2.23.10-userByName-experiment"
 
 # Initialize experiment params
 startingThread=51
 endingThread=100
 numValidationRuns=10
 latencyQuantile=0.99
-queryType="userByEmail"
+queryType="userByName"
 numSampleSets=numValidationRuns
 
 # Save to paramFile
