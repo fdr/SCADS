@@ -455,3 +455,29 @@ x.abscissa = barplot(c(mean(sampled99th),mean(validation99th)), names.arg=c("Sam
 superpose.eb(x.abscissa,c(mean(sampled99th),mean(validation99th)),c(lb.sampled,lb.actual),c(ub.sampled,ub.actual),col="green",lwd=2)
 dev.off()
 
+
+
+## 3.9.10
+## Checking out thoughtsByHashTag data
+
+data = as.data.frame(read.csv(file="~/Desktop/validation1-logs/Thread-51.csv"))
+
+data[1:10,]
+dim(data)
+
+numqueries = length(which(data$opLevel==3))
+
+data[data$queryNum==1 & data$opLevel==2,]
+
+
+
+
+
+
+
+
+
+
+
+
+

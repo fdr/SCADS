@@ -93,6 +93,21 @@ createAndSaveUserByNameOpHistograms = function(basePath) {
 }
 
 
+createAndSaveThoughtsByHashTagOpHistograms = function(basePath) {
+	print("Loading training data...")
+	load(file=paste(basePath, "/trainingData.RData", sep=""))  # => "data"
+	
+	print("Creating histograms...")
+	h2 = hist(data[data$opLevel==2 & data$opType==2,"latency_ms"], breaks=25)
+	h5 = hist(data[data$opLevel==2 & data$opType==5,"latency_ms"], breaks=25)
+	h6 = hist(data[data$opLevel==2 & data$opType==6,"latency_ms"], breaks=25)
+	h8 = hist(data[data$opLevel==2 & data$opType==8,"latency_ms"], breaks=25)
+
+	print("Saving histograms...")
+	save(h2, h5, h6, h8, file=paste(basePath,"/histograms.RData", sep=""))
+}
+
+
 ## DEPRECATED
 ## Note more general version which follows.
 getPredictedThoughtstreamQueryLatencyQuantiles = function(numSampleSets, basePath, latencyQuantile) {
@@ -144,6 +159,8 @@ getPredictedQueryLatencyQuantiles = function(queryType, numSampleSets, basePath,
 			samples=userByEmailSampler(basePath, j, numSamplesPerSet)
 		} else if (queryType == "userByName") {
 			samples=userByNameSampler(basePath, j, numSamplesPerSet)
+		} else if (queryType == "thoughtsByHashTag") {
+			samples=thoughtsByHashTagSampler(basePath, j, numSamplesPerSet)
 		} else {
 			print("Incorrect queryType specified.")
 		}
@@ -212,6 +229,24 @@ userByNameSampler = function(basePath, sampleID, numSamples) {
 
 	return(samples)
 	
+}
+
+
+thoughtsByHashTagSampler = function(basePath, sampleID, numSamples) {
+	load(file=paste(basePath, "/histograms.RData", sep=""))  # => histograms
+	
+	samples=matrix(data=0, nrow=1, ncol=numSamples)
+
+	for (i in 1:numSamples) {
+		samples[i] = samples[i] + sample(h2$mids, 1, replace=TRUE, prob=h2$density)
+		samples[i] = samples[i] + sample(h5$mids, 1, replace=TRUE, prob=h5$density)
+		samples[i] = samples[i] + sum(sample(h6$mids, 2, replace=TRUE, prob=h6$density))
+		samples[i] = samples[i] + sample(h8$mids, 1, replace=TRUE, prob=h8$density)
+	}
+
+	save(samples, file=paste(basePath,"/sample", sampleID,".RData",sep=""))
+
+	return(samples)
 }
 
 
