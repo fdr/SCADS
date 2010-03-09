@@ -31,6 +31,7 @@ java -DlogDir=$1/training-logs -cp $5/logparsing-1.0-SNAPSHOT-jar-with-dependenc
 #for i in `jot $2 1 $2`;
 for i in `seq 1 $2`
 do echo Parsing validation $i per-thread logs...;
+echo $5/logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar;
 java -DlogDir=$1/validation-logs/validation$i-logs -cp $5/logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar parser.ParsePerThreadLogs;
 done
 
