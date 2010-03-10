@@ -118,7 +118,7 @@ createAndSaveUserByEmailOpHistogramsFromOtherQueries = function(basePathThoughts
 	h6.thoughtstream = h6
 	
 	print("Loading histograms for thoughtsByHashTag...")
-	print(file=paste(basePathThoughtsByHashTag, "/histograms.RData", sep=""))
+	load(file=paste(basePathThoughtsByHashTag, "/histograms.RData", sep=""))
 	# => h2, h5, h6, h8
 	# want to keep h2 & h6
 	
