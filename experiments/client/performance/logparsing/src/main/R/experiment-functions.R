@@ -108,6 +108,39 @@ createAndSaveThoughtsByHashTagOpHistograms = function(basePath) {
 }
 
 
+createAndSaveUserByEmailOpHistogramsFromOtherQueries = function(basePathThoughtstream, basePathThoughtsByHashTag, outputPath1, outputPath2) {
+	print("Loading histograms for thoughtstream...")
+	load(file=paste(basePathThoughtstream, "/histograms.RData", sep=""))  
+	# => h1, h3, h4, h5, h6, h7, h8, h9
+	# want to keep h3 & h6
+	
+	h3.thoughtstream = h3
+	h6.thoughtstream = h6
+	
+	print("Loading histograms for thoughtsByHashTag...")
+	print(file=paste(basePathThoughtsByHashTag, "/histograms.RData", sep=""))
+	# => h2, h5, h6, h8
+	# want to keep h2 & h6
+	
+	h2.thoughtsByHashTag = h2
+	h6.thoughtsByHashTag = h6
+	
+	print("Saving histogram files (2 options) for userByEmail...")
+	
+	# First option:  h2=h2.thoughtsByHashTag, h3=h3.thoughtstream, h6=h6.thoughtstream
+	h2=h2.thoughtsByHashTag
+	h3=h3.thoughtstream
+	h6=h6.thoughtstream
+	save(h2,h3,h6,file=paste(outputPath1,"/histograms.RData", sep=""))
+	
+	# Second option:  h2=h2.thoughtsByHashTag, h3=h3.thoughtstream, h6=h6.thoughtsByHashTag
+	#h2=h2.thoughtsByHashTag
+	#h3=h3.thoughtstream
+	h6=h6.thoughtsByHashTag
+	save(h2,h3,h6,file=paste(outputPath2,"/histograms.RData", sep=""))
+}
+
+
 ## DEPRECATED
 ## Note more general version which follows.
 getPredictedThoughtstreamQueryLatencyQuantiles = function(numSampleSets, basePath, latencyQuantile) {
@@ -142,7 +175,6 @@ getPredictedThoughtstreamQueryLatencyQuantiles = function(numSampleSets, basePat
 }
 
 
-# queryType \in {"thoughtstream", "userByEmail", "userByName"}
 getPredictedQueryLatencyQuantiles = function(queryType, numSampleSets, basePath, latencyQuantile) {
 	predictedQueryLatencyQuantiles = matrix(nrow=1,ncol=numSampleSets)
 	
@@ -172,6 +204,41 @@ getPredictedQueryLatencyQuantiles = function(queryType, numSampleSets, basePath,
 		
 	return(predictedQueryLatencyQuantiles)
 }
+
+
+# Allows validationStats.RData & histogram.RData to be stored in different directories.
+# Output is saved in directory represented by basePathHistograms.
+getPredictedQueryLatencyQuantiles2 = function(queryType, numSampleSets, basePathValidationStats, basePathHistograms, latencyQuantile) {
+	predictedQueryLatencyQuantiles = matrix(nrow=1,ncol=numSampleSets)
+	
+	load(file=paste(basePathValidationStats, "/validationStats.RData", sep="")) # => validationStats
+	numSamplesPerSet = floor(mean(validationStats[,"numQueries"]))
+	print(paste("Using", numSamplesPerSet, "samples per set."))
+
+	for (j in 1:numSampleSets) {
+		print(paste("Sample Set", j))
+		
+		if (queryType == "thoughtstream") {
+			samples=thoughtstreamSampler(basePathHistograms, j, numSamplesPerSet)
+		} else if (queryType == "userByEmail") {
+			samples=userByEmailSampler(basePathHistograms, j, numSamplesPerSet)
+		} else if (queryType == "userByName") {
+			samples=userByNameSampler(basePathHistograms, j, numSamplesPerSet)
+		} else if (queryType == "thoughtsByHashTag") {
+			samples=thoughtsByHashTagSampler(basePathHistograms, j, numSamplesPerSet)
+		} else {
+			print("Incorrect queryType specified.")
+		}
+			
+
+		predictedQueryLatencyQuantiles[j]=quantile(samples, latencyQuantile)	}
+		
+	save(predictedQueryLatencyQuantiles, file=paste(basePathHistograms,"/predictedStats.RData", sep=""))
+		
+	return(predictedQueryLatencyQuantiles)
+}
+
+
 
 
 # Samplers produce & save a single sample set.
@@ -274,6 +341,14 @@ getPredictionError = function(basePath) {
 	return(error)
 }
 
+
+getPredictionError2 = function(basePathValidationStats, basePathPredictedStats) {
+	load(file=paste(basePathValidationStats,"/validationStats.RData",sep=""))  # => validationStats
+	load(file=paste(basePathPredictedStats,"/predictedStats.RData",sep=""))   # => predictedQueryLatencyQuantiles
+	
+	error = abs(median(validationStats[,"latencyQuantile"]) - median(predictedQueryLatencyQuantiles))/median(validationStats[,"latencyQuantile"])
+	return(error)
+}
 
 
 

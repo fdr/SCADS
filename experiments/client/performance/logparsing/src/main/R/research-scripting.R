@@ -469,7 +469,7 @@ numqueries = length(which(data$opLevel==3))
 
 data[data$queryNum==1 & data$opLevel==2,]
 
-
+hist(data[data$opLevel==3,"latency_ms"], breaks=10)
 
 
 
