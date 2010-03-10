@@ -352,6 +352,30 @@ getPredictionError2 = function(basePathValidationStats, basePathPredictedStats) 
 
 
 
+plotActualAndPredictedLatencyQuantiles = function(basePathValidationStats, basePathPredictedStats, queryType) {
+	load(file=paste(basePathValidationStats,"/validationStats.RData",sep=""))  # => validationStats
+	load(file=paste(basePathPredictedStats,"/predictedStats.RData",sep=""))   # => predictedQueryLatencyQuantiles
+	
+	median.actual = median(validationStats[,"latencyQuantile"])
+	median.predicted = median(predictedQueryLatencyQuantiles)
+	
+	ub.predicted = max(predictedQueryLatencyQuantiles) - median.predicted
+	lb.predicted = median.predicted - min(predictedQueryLatencyQuantiles)
+
+	ub.actual = max(validationStats[,"latencyQuantile"]) - median.actual
+	lb.actual = median.actual - min(validationStats[,"latencyQuantile"])
+
+	pdf(file=paste(basePathPredictedStats,"/error.pdf",sep=""), height=6, width=6)
+	par(mar=c(5,5,4,2)+0.1)
+	x.abscissa = barplot(c(median.predicted,median.actual), ylim=c(0,1.1*max(validationStats[,"latencyQuantile"], predictedQueryLatencyQuantiles)), names.arg=c("Sampled", "Actual"), col=c("blue","cyan"), ylab="Latency (ms)", main=paste(queryType, "Query:  Sampled vs. Actual Latency"))
+	superpose.eb(x.abscissa,c(median.predicted,median.actual),c(lb.predicted,lb.actual),c(ub.predicted,ub.actual),col="green",lwd=2)
+	dev.off()
+}
+
+
+superpose.eb = function (x, y, ebl, ebu = ebl, length.arg = 0.08, col, lwd) {
+	arrows(x, y + ebu, x, y - ebl, angle = 90, code = 3, length=length.arg, col=col, lwd=lwd)
+}
 
 
 

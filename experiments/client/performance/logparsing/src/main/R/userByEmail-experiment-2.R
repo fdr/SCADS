@@ -22,9 +22,20 @@ outputPath2 = paste(basePath, "/option2", sep="")
 createAndSaveUserByEmailOpHistogramsFromOtherQueries(basePathThoughtstream, basePathThoughtsByHashTag, outputPath1, outputPath2)
 
 # Validation phase:
+# Uses validation data from thoughtsByHashTag experiment
 print("Getting predicted latency...")
 getPredictedQueryLatencyQuantiles2(queryType, numSampleSets, basePathThoughtsByHashTag, outputPath1, latencyQuantile)
-getPredictedError2(basePathThoughtsByHashTag, outputPath1)
+getPredictionError2(basePathThoughtsByHashTag, outputPath1)
+
+
+
+
+## Version 2:  
+# h2=h2.thoughtsByHashTag, h3=h3.thoughtstream, h6=h6.thoughtsByHashTag
+print("Getting predicted latency...")
+getPredictedQueryLatencyQuantiles2(queryType, numSampleSets, basePathThoughtsByHashTag, outputPath2, latencyQuantile)
+getPredictionError2(basePathThoughtsByHashTag, outputPath2)
+
 
 
 
