@@ -1,0 +1,21 @@
+ENTITY A
+{
+	string key,
+	string key2,
+	string dataA
+	PRIMARY(key)
+}
+
+ENTITY B
+{
+	string key2,
+	string dataB
+	PRIMARY(owner, key2)
+}
+
+RELATIONSHIP owner FROM A TO MANY B
+
+QUERY ABySecondaryKey
+FETCH A
+WHERE key2 = [1:key2]
+LIMIT 10 MAX 10

@@ -46,3 +46,9 @@ save(startingThread, endingThread, numValidationRuns, latencyQuantile, queryType
 #source(file="queryExperiment1.R")
 error = queryExperiment1(basePath)
 print(error)
+
+
+# Just get error
+source("/work/ksauer/scads/experiments/client/performance/logparsing/src/main/R/experiment-functions.R")
+error = getPredictionError(basePath)
+error

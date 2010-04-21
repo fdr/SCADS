@@ -21,7 +21,8 @@ abstract trait QueryExecutor {
 	protected val nsVersions: Map[String, Boolean]
 
 	/* Tuple Providers */
-	protected def singleGet(namespace: String, key: Field, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
+	//protected def singleGet(namespace: String, key: Field, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
+	def singleGet(namespace: String, key: Field, policy: ReadPolicy)(implicit env: Environment): TupleStream = {	
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 		
@@ -35,7 +36,8 @@ abstract trait QueryExecutor {
 		x
 	}
 
-	protected def prefixGet(namespace: String, prefix: Field, limit: LimitValue, ascending: Boolean, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
+	//protected def prefixGet(namespace: String, prefix: Field, limit: LimitValue, ascending: Boolean, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
+	def prefixGet(namespace: String, prefix: Field, limit: LimitValue, ascending: Boolean, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
@@ -54,7 +56,8 @@ abstract trait QueryExecutor {
 		x
 	}
 
-	protected def sequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleStream)(implicit env: Environment): TupleStream = {
+	//protected def sequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleStream)(implicit env: Environment): TupleStream = {
+	def sequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleStream)(implicit env: Environment): TupleStream = {
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
@@ -70,7 +73,8 @@ abstract trait QueryExecutor {
 		x
 	}
 
-	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: LimitValue, ascending: Boolean, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
+	//protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: LimitValue, ascending: Boolean, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
+	def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: LimitValue, ascending: Boolean, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
@@ -94,7 +98,8 @@ abstract trait QueryExecutor {
 		x
 	}
 
-	protected def pointerJoin(namespace: String, conditions: List[JoinCondition], policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
+	//protected def pointerJoin(namespace: String, conditions: List[JoinCondition], policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
+	def pointerJoin(namespace: String, conditions: List[JoinCondition], policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
@@ -116,7 +121,8 @@ abstract trait QueryExecutor {
 	}
 
 	/* Entity Providers */
-	protected def materialize[EntityType <: Entity](entityClass: Class[EntityType], child: TupleStream)(implicit env: Environment): Seq[EntityType] = {
+	//protected def materialize[EntityType <: Entity](entityClass: Class[EntityType], child: TupleStream)(implicit env: Environment): Seq[EntityType] = {
+	def materialize[EntityType <: Entity](entityClass: Class[EntityType], child: TupleStream)(implicit env: Environment): Seq[EntityType] = {
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
@@ -134,7 +140,8 @@ abstract trait QueryExecutor {
 		x
 	}
 
-	protected def selection[EntityType <: Entity](equalityMap: HashMap[String, Field], child: Seq[EntityType]): Seq[EntityType] = {
+	//protected def selection[EntityType <: Entity](equalityMap: HashMap[String, Field], child: Seq[EntityType]): Seq[EntityType] = {
+	def selection[EntityType <: Entity](equalityMap: HashMap[String, Field], child: Seq[EntityType]): Seq[EntityType] = {
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
@@ -153,7 +160,8 @@ abstract trait QueryExecutor {
 		x
 	}
 
-	protected def sort[EntityType <: Entity](fields: List[String], ascending: Boolean, child: Seq[EntityType]): Seq[EntityType] = {
+	//protected def sort[EntityType <: Entity](fields: List[String], ascending: Boolean, child: Seq[EntityType]): Seq[EntityType] = {
+	def sort[EntityType <: Entity](fields: List[String], ascending: Boolean, child: Seq[EntityType]): Seq[EntityType] = {
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
@@ -175,7 +183,8 @@ abstract trait QueryExecutor {
 		x
 	}
 
-	protected def topK[EntityType <: Entity](k: Field, child: Seq[EntityType]): Seq[EntityType] = {
+	//protected def topK[EntityType <: Entity](k: Field, child: Seq[EntityType]): Seq[EntityType] = {
+	def topK[EntityType <: Entity](k: Field, child: Seq[EntityType]): Seq[EntityType] = {
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 		
