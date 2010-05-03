@@ -16,6 +16,8 @@ abstract trait QueryExecutor {
 	type EntityStream = Seq[Entity]
 	type LimitValue = Field
 
+	//val opLogger = Logger.getLogger("scads.queryexecution.operators")
+
 	/* Metadata Catalog */
 	protected val nsKeys: Map[String, List[Class[Field]]]
 	protected val nsVersions: Map[String, Boolean]
@@ -23,6 +25,8 @@ abstract trait QueryExecutor {
 	/* Tuple Providers */
 	//protected def singleGet(namespace: String, key: Field, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
 	def singleGet(namespace: String, key: Field, policy: ReadPolicy)(implicit env: Environment): TupleStream = {	
+		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 		
@@ -30,7 +34,8 @@ abstract trait QueryExecutor {
 		
 		val endt = System.nanoTime()
 		val latency = endt-startt
-		println(new java.util.Date() + ": " + threadName + " executed: singleGet(" + namespace + "," + key + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		//println(new java.util.Date() + ": " + threadName + " executed: singleGet(" + namespace + "," + key + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		opLogger.info("singleGet(" + namespace + "," + key + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": " + this + " executed: singleGet(" + namespace + "," + key + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		
 		x
@@ -38,6 +43,8 @@ abstract trait QueryExecutor {
 
 	//protected def prefixGet(namespace: String, prefix: Field, limit: LimitValue, ascending: Boolean, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
 	def prefixGet(namespace: String, prefix: Field, limit: LimitValue, ascending: Boolean, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
+		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
@@ -50,7 +57,8 @@ abstract trait QueryExecutor {
 
 		val endt = System.nanoTime()
 		val latency = endt-startt
-		println(new java.util.Date() + ": " + threadName + " executed: prefixGet(" + namespace + "," + prefix + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		//println(new java.util.Date() + ": " + threadName + " executed: prefixGet(" + namespace + "," + prefix + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		opLogger.info("prefixGet(" + namespace + "," + prefix + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": " + this + " executed: prefixGet(" + namespace + "," + prefix + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		
 		x
@@ -58,6 +66,8 @@ abstract trait QueryExecutor {
 
 	//protected def sequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleStream)(implicit env: Environment): TupleStream = {
 	def sequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleStream)(implicit env: Environment): TupleStream = {
+		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
@@ -67,7 +77,8 @@ abstract trait QueryExecutor {
 
 		val endt = System.nanoTime()
 		val latency = endt-startt
-		println(new java.util.Date() + ": " + threadName + " executed: sequentialDereferenceIndex(" + targetNamespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		//println(new java.util.Date() + ": " + threadName + " executed: sequentialDereferenceIndex(" + targetNamespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		opLogger.info("sequentialDereferenceIndex(" + targetNamespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": " + this + " executed: sequentialDereferenceIndex(" + targetNamespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		
 		x
@@ -75,6 +86,8 @@ abstract trait QueryExecutor {
 
 	//protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: LimitValue, ascending: Boolean, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
 	def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: LimitValue, ascending: Boolean, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
+		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
@@ -92,7 +105,8 @@ abstract trait QueryExecutor {
 
 		val endt = System.nanoTime()
 		val latency = endt-startt
-		println(new java.util.Date() + ": " + threadName + " executed: prefixJoin(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		//println(new java.util.Date() + ": " + threadName + " executed: prefixJoin(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		opLogger.info("prefixJoin(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": " + this + " executed: prefixJoin(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		
 		x
@@ -100,6 +114,8 @@ abstract trait QueryExecutor {
 
 	//protected def pointerJoin(namespace: String, conditions: List[JoinCondition], policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
 	def pointerJoin(namespace: String, conditions: List[JoinCondition], policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
+		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		
 		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
@@ -114,7 +130,8 @@ abstract trait QueryExecutor {
 
 		val endt = System.nanoTime()
 		val latency = endt-startt
-		println(new java.util.Date() + ": " + threadName + " executed: pointerJoin(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		//println(new java.util.Date() + ": " + threadName + " executed: pointerJoin(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		opLogger.info("pointerJoin(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": " + this + " executed: pointerJoin(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		
 		x
@@ -123,7 +140,12 @@ abstract trait QueryExecutor {
 	/* Entity Providers */
 	//protected def materialize[EntityType <: Entity](entityClass: Class[EntityType], child: TupleStream)(implicit env: Environment): Seq[EntityType] = {
 	def materialize[EntityType <: Entity](entityClass: Class[EntityType], child: TupleStream)(implicit env: Environment): Seq[EntityType] = {
+		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		
 		val threadName = Thread.currentThread().getName()
+		
+		val len = child.length
+		
 		val startt = System.nanoTime()
 
 		val x = child.map((t) => {
@@ -134,7 +156,8 @@ abstract trait QueryExecutor {
 
 		val endt = System.nanoTime()
 		val latency = endt-startt
-		println(new java.util.Date() + ": " + threadName + " executed: materialize(), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		//println(new java.util.Date() + ": " + threadName + " executed: materialize(" + len + " tuples), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		opLogger.info("materialize(" + len + " tuples), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": " + this + " executed: materialize, start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		
 		x
@@ -142,7 +165,12 @@ abstract trait QueryExecutor {
 
 	//protected def selection[EntityType <: Entity](equalityMap: HashMap[String, Field], child: Seq[EntityType]): Seq[EntityType] = {
 	def selection[EntityType <: Entity](equalityMap: HashMap[String, Field], child: Seq[EntityType]): Seq[EntityType] = {
+		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		
 		val threadName = Thread.currentThread().getName()
+		
+		val len = child.length
+		
 		val startt = System.nanoTime()
 
 		val x = child.filter((e) => {
@@ -153,7 +181,8 @@ abstract trait QueryExecutor {
 
 		val endt = System.nanoTime()
 		val latency = endt-startt
-		println(new java.util.Date() + ": " + threadName + " executed: selection(), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		//println(new java.util.Date() + ": " + threadName + " executed: selection(" + len + " tuples), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		opLogger.info("selection(" + len + " tuples), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": " + this + " executed: selection, start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		
 		
@@ -162,7 +191,12 @@ abstract trait QueryExecutor {
 
 	//protected def sort[EntityType <: Entity](fields: List[String], ascending: Boolean, child: Seq[EntityType]): Seq[EntityType] = {
 	def sort[EntityType <: Entity](fields: List[String], ascending: Boolean, child: Seq[EntityType]): Seq[EntityType] = {
+		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		
 		val threadName = Thread.currentThread().getName()
+		
+		val len = child.length
+		
 		val startt = System.nanoTime()
 
 		var x:Seq[EntityType] = null
@@ -177,7 +211,8 @@ abstract trait QueryExecutor {
 
 		val endt = System.nanoTime()
 		val latency = endt-startt
-		println(new java.util.Date() + ": " + threadName + " executed: sort(), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		//println(new java.util.Date() + ": " + threadName + " executed: sort(" + len + " tuples), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		opLogger.info("sort(" + len + " tuples), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": " + this + " executed: sort, start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		
 		x
@@ -185,14 +220,20 @@ abstract trait QueryExecutor {
 
 	//protected def topK[EntityType <: Entity](k: Field, child: Seq[EntityType]): Seq[EntityType] = {
 	def topK[EntityType <: Entity](k: Field, child: Seq[EntityType]): Seq[EntityType] = {
+		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		
 		val threadName = Thread.currentThread().getName()
+		
+		val len = child.length
+		
 		val startt = System.nanoTime()
 		
 		val x = child.slice(0, limitToInt(k))
 
 		val endt = System.nanoTime()
 		val latency = endt-startt
-		println(new java.util.Date() + ": " + threadName + " executed: topK(), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		//println(new java.util.Date() + ": " + threadName + " executed: topK(" + len + " tuples), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		opLogger.info("topK(" + len + " tuples), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": " + this + " executed: topK, start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		
 		x

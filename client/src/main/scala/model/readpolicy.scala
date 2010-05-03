@@ -30,6 +30,8 @@ object ReadRandomPolicy extends ReadPolicy {
 	val rand = new scala.util.Random()
 
 	def get(namespace: String, key: String, keyClass: List[Class[Field]], versioned: Boolean)(implicit env: Environment): Tuple = {
+		val primitiveLogger = Logger.getLogger("scads.readpolicy.primitives")
+		
 		val nodes = env.placement.locate(namespace, key)
 		val node = nodes(rand.nextInt(nodes.length))
 
@@ -49,13 +51,16 @@ object ReadRandomPolicy extends ReadPolicy {
 		
 		//println(new java.util.Date() + ": executed: get(" + namespace + ", " + key + "), start=" + startt_ms + ", end=" + endt_ms + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": executed: get(" + namespace + ", " + key + "), start=" + (startt*1000000.0) + ", end=" + (endt*1000000.0) + ", latency=" + (latency/1000000.0))
-		println(new java.util.Date() + ": " + threadName + " executed: get(" + namespace + "," + key + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		//println(new java.util.Date() + ": " + threadName + " executed: get(" + namespace + "," + key + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		primitiveLogger.info("get(" + namespace + "," + key + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		// End instrumentation
 
 		makeTuple(rec, keyClass, versioned)
 	}
 
 	def get_set(namespace: String, startKey: String, endKey: String, limit: Int, keyClass: List[Class[Field]], versioned: Boolean)(implicit env: Environment): List[Tuple] = {
+		val primitiveLogger = Logger.getLogger("scads.readpolicy.primitives")
+
 		val node = env.placement.locate(namespace, startKey)
 
 		// Instrumenting to record latency of "get" op
@@ -80,7 +85,8 @@ object ReadRandomPolicy extends ReadPolicy {
 
 		//println(new java.util.Date() + ": executed: get_set(" + namespace + "), start=" + startt_ms + ", end=" + endt_ms + ", latency=" + (latency/1000000.0))
 		//println(new java.util.Date() + ": executed: get_set(" + namespace + "), start=" + (startt*1000000.0) + ", end=" + (endt*1000000.0) + ", latency=" + (latency/1000000.0))
-		println(new java.util.Date() + ": " + threadName + " executed: get_set(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		//println(new java.util.Date() + ": " + threadName + " executed: get_set(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
+		primitiveLogger.info("get_set(" + namespace + "), start=" + (startt/1000000.0) + ", end=" + (endt/1000000.0) + ", latency=" + (latency/1000000.0))
 		// End instrumentation
 
 

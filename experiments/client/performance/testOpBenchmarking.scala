@@ -11,7 +11,7 @@ env.session = new TrivialSession
 env.executor = new TrivialExecutor
 
 
-val opType=4
+val opType=9
 val maxItems=100
 val aSize=10
 val bSize=10
@@ -20,4 +20,4 @@ val numB=20
 
 PerOpDataGen.genData(opType, aSize, bSize, maxItems)
 
-PerOpBenchmarker.benchmarkOp(opType, aSize, numA, numB, maxItems)
+PerOpBenchmarker.benchmarkOp(opType, aSize, bSize, numA, numB, maxItems)
