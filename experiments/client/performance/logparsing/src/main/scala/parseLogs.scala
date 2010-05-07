@@ -94,9 +94,11 @@ object ParseLogs extends Application {
 
 }
 
+/*
 class Filter(pattern:String) extends FilenameFilter {
   	def accept (dir:File, name:String):boolean = {
     	return name.toLowerCase().endsWith(pattern.toLowerCase());
   	}
 }
+*/
 

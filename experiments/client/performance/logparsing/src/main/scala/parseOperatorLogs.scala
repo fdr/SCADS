@@ -3,6 +3,8 @@ package parser
 import java.io._
 import scala.io.Source
 
+// assumes various "chunks" indicated by #A, #B, size(A), size(B)
+
 object ParseOperatorLogs extends Application {
 	// Codes for op level
 	val PRIMITIVE=1
@@ -11,10 +13,10 @@ object ParseOperatorLogs extends Application {
 	val logDir = System.getProperty("logDir")
 	println("Logs obtained from " + logDir + "...")		// logDir shouldn't end with a "/"
 	val outputFilename = System.getProperty("outputFilename")
-	println("Logs output to " + logDir + "/" + outputFilename)
+	println("Logs output to " + outputFilename)
 	
 	// Read in all log files from directory indicated, one at a time.
-	val out = new FileWriter( new java.io.File(logDir + "/" + outputFilename) )
+	val out = new FileWriter( new java.io.File(outputFilename) )
 	out.write("threadNum, opLevel, opType, aSize, bSize, numA, numB, start_ms, end_ms, latency_ms\n")
 	
 	var aSize = 0
@@ -26,13 +28,17 @@ object ParseOperatorLogs extends Application {
 	val dir = new File(logDir)
 	
 	// Consider files in descending order b/c of the way they're produced by the rolling file appender (? see what happens when there are > 2 files)
-	(dir.listFiles().toList.reverse).foreach(file => {
+	(dir.listFiles(new LogFilter(".log")).toList.reverse).foreach(file => {
+		println(file.toString)
+		
 		var threadNum = 0
 		var opType = 0
 		var opLevel = 0
 		var start:String = null
 		var end:String = null
 		var latency:String = null
+		
+		var lineNum = 0
 
 		for (line <- Source.fromFile(file).getLines) {
 			if (line.contains("New data size pair")) {
@@ -83,9 +89,21 @@ object ParseOperatorLogs extends Application {
 					out.flush
 				}
 			}
+			
+			if ((lineNum % 100000) == 0)
+				println("Parsed " + lineNum + " lines...")
+				
+			lineNum = lineNum + 1
 		}
 	})
 	
 }
+
+class LogFilter(pattern:String) extends FilenameFilter {
+  	def accept (dir:File, name:String):boolean = {
+    	return name.toLowerCase().contains(pattern.toLowerCase());
+  	}
+}
+
 
 

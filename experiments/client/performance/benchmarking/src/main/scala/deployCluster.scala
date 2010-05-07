@@ -9,6 +9,9 @@ import org.apache.log4j.Logger
 import org.json.JSONObject
 import org.json.JSONArray
 
+import com.amazonaws.ec2._
+import com.amazonaws.ec2.model._
+
 import edu.berkeley.cs.scads.thrift._
 import edu.berkeley.cs.scads.model.{Environment, TrivialSession, TrivialExecutor, ZooKeptCluster}
 import scala.collection.jcl.Conversions._
@@ -79,17 +82,44 @@ object ClusterDeployment extends ConfigurationActions {
 		println("  zookeeperPort=>" + zookeeperPort + "<")
 		val storageEnginePort = System.getProperty("storageEnginePort").toInt
 		println("  storageEnginePort=>" + storageEnginePort + "<")
-		val reservationID = System.getProperty("reservationID")
-		println("  reservationID=>" + reservationID + "<")
+		val availabilityZone = System.getProperty("availabilityZone")
+		println("  availabilityZone=>" + availabilityZone + "<")
+		val remoteDir = System.getProperty("remoteDir")
+		println("  remoteDir=>" + remoteDir + "<")
 		
 		
 		// Deploy cluster
+
+		/*
+		// Make sure the availability zone is available.
+		val resp = (new AmazonEC2Client(System.getenv("AWS_ACCESS_KEY_ID"), System.getenv("AWS_SECRET_ACCESS_KEY"))).describeAvailabilityZones(new DescribeAvailabilityZonesRequest())
+		val zones = resp.getDescribeAvailabilityZonesResult().getAvailabilityZone()
+
+		var zoneToUse:String = null
+		var i = 0;
+		while (i < zones.size() && zoneToUse == null) {
+			println(zones.get(i).getZoneName())
+			println(zones.get(i).getZoneState())
+			
+			if (zones.get(i).getZoneState() == "available")
+				zoneToUse = zones.get(i).getZoneName()
+			i += 1
+		}
+		if (zoneToUse == null) {
+			println("No zones available.")
+			System.exit(0)
+		}
+		*/
+		
 		//val reservationID = EC2Instance.runInstancesAndReturnReservationID("ami-e7a2448e", 3, 3, System.getenv("AWS_KEY_NAME"), "m1.small", "us-east-1c")
-		val nodes = EC2Instance.runInstances("ami-e7a2448e", 3, 3, System.getenv("AWS_KEY_NAME"), "m1.small", "us-east-1c")
+		//val nodes = EC2Instance.runInstances("ami-e7a2448e", 3, 3, System.getenv("AWS_KEY_NAME"), "m1.small", "us-east-1d")
+		println(System.getenv("AWS_KEY_NAME"))
+		println(availabilityZone)
+		val nodes = EC2Instance.runInstances("ami-e7a2448e", 3, 3, System.getenv("AWS_KEY_NAME"), "m1.small", availabilityZone)
 		//val nodes = EC2Instance.myInstances
 		//val nodes = EC2Instance.getReservation(reservationID)
 		println(nodes)
-		println(EC2Instance.myInstances)
+		//println(EC2Instance.myInstances)
 
 		// Setup Zookeeper
 		//val zookeeperPort = System.getProperty("zookeeperPort").toInt
@@ -119,8 +149,12 @@ object ClusterDeployment extends ConfigurationActions {
 		// Setup OpBenchmarker
 		//def createJavaService(target: RunitManager, localJar: File, className: String, maxHeapMb: Int, args: String): RunitService = {
 		val clientNode = nodes(2)
-		clientNode.executeCommand("rm -rf /mnt/services")
-		clientNode.executeCommand("rm /root/*")
+		//clientNode.executeCommand("rm -rf /mnt/services")
+		//clientNode.executeCommand("rm /root/*")
+		
+		clientNode.executeCommand("mkdir /root/operator")
+		clientNode.executeCommand("mkdir /root/primitive")
+		
 		/*
 		val clientService = createJavaService(clientNode, 
 			new File("/Users/ksauer/Desktop/scads/experiments/client/performance/benchmarking/target/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"),
@@ -130,29 +164,34 @@ object ClusterDeployment extends ConfigurationActions {
 			"-itemsInc=5 -minChars=5 -maxChars=10 -charsInc=5 -zookeeperServerAndPort=" + zooNode.hostname + ":" + zookeeperPort + 
 			" -storageNodeServer=" + storageNode.hostname)
 		*/
-		
-		/*
+
+		/*		
 		val logFileText = Array("log4j.logger.scads.queryexecution.operators=INFO,A1",
 			"log4j.appender.A1=org.apache.log4j.RollingFileAppender",
 			"log4j.appender.A1.File=/root/benchmark-output.log",
 			"log4j.appender.A1.layout=org.apache.log4j.PatternLayout",
 			"log4j.appender.A1.layout.ConversionPattern=%d{DATE} [%p] %t: %m%n").mkString("", "\n", "\n")
 		*/
+		
 		val logFileText = Array("log4j.logger.scads.queryexecution.operators=INFO,A1",
-			"log4j.appender.A1=org.apache.log4j.RollingFileAppender",
+			//"log4j.appender.A1=org.apache.log4j.RollingFileAppender",
+			"log4j.appender.A1=org.apache.log4j.FileAppender",
 			"log4j.appender.A1.File=/root/operator/benchmark-output.log",
 			"log4j.appender.A1.layout=org.apache.log4j.PatternLayout",
 			"log4j.appender.A1.layout.ConversionPattern=%d{DATE} [%p] %t: %m%n",
 			"log4j.logger.scads.readpolicy.primitives=INFO,A2",
-			"log4j.appender.A2=org.apache.log4j.RollingFileAppender",
+			//"log4j.appender.A2=org.apache.log4j.RollingFileAppender",
+			"log4j.appender.A2=org.apache.log4j.FileAppender",
 			"log4j.appender.A2.File=/root/primitive/benchmark-output.log",
 			"log4j.appender.A2.layout=org.apache.log4j.PatternLayout",
 			"log4j.appender.A2.layout.ConversionPattern=%d{DATE} [%p] %t: %m%n").mkString("", "\n", "\n")
 																						
 		val clientService = createJavaServiceWithCustomLog4jConfigFile(clientNode, 
-			new File("/Users/ksauer/Desktop/scads/experiments/client/performance/benchmarking/target/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"),
+			//new File("/Users/ksauer/Desktop/scads/experiments/client/performance/benchmarking/target/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"),
+			new File(remoteDir + "/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"),
 			//new File("/work/ksauer/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"),
 			"BenchmarkOps",
+			//"BenchmarkOpsNoPrimLogging",
 			2048,
 			/*
 			"-whichOp=1 -numThreads=5 -warmupDuration=10 -runDuration=10 -minItems=5 -maxItems=10 " +  
@@ -172,8 +211,9 @@ object ClusterDeployment extends ConfigurationActions {
 		clientService.once
 		clientService.blockTillDown
 		clientNode.executeCommand("tar -cvvf op" + whichOp + ".tar /root/*")
+		clientNode.executeCommand("s3cmd put /root/op" + whichOp + ".tar s3://kristal")
 		//clientNode.download(new File("/root/op" + whichOp + ".tar"), new File("/work/ksauer/4.30.10-op-benchmarking-logs"))
-		clientNode.download(new File("/root/op" + whichOp + ".tar"), new File("/Users/ksauer/Desktop"))
+		//clientNode.download(new File("/root/op" + whichOp + ".tar"), new File("/Users/ksauer/Desktop"))
 		
 		
 		
@@ -195,9 +235,12 @@ object ClusterDeployment extends ConfigurationActions {
 	
 	
 	def deployZooKeeperServer(target: RunitManager, zookeeperPort:Int): RunitService = {
+		val remoteDir = System.getProperty("remoteDir")
+		
 		val zooStorageDir = createDirectory(target, new File(target.rootDirectory, "zookeeperdata"))
 		val zooService = createJavaService(target, 
-			new File("/Users/ksauer/Desktop/scads/scalaengine/target/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar"),
+			//new File("/Users/ksauer/Desktop/scads/scalaengine/target/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar"),
+			new File(remoteDir + "/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar"),
 			//new File("/work/ksauer/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar"),
 			"org.apache.zookeeper.server.quorum.QuorumPeerMain",
       		2048,
@@ -220,9 +263,11 @@ object ClusterDeployment extends ConfigurationActions {
 	
 	
 	def deployStorageEngine(target: RunitManager, zooServer: RemoteMachine, bulkLoad: Boolean, storageEnginePort:Int, zookeeperPort:Int): RunitService = {
-    val bulkLoadFlag = if(bulkLoad) " -b " else ""
+		val remoteDir = System.getProperty("remoteDir")
+    	val bulkLoadFlag = if(bulkLoad) " -b " else ""
 		createJavaService(target, 
-			new File("/Users/ksauer/Desktop/scads/scalaengine/target/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar"),
+			//new File("/Users/ksauer/Desktop/scads/scalaengine/target/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar"),
+			new File(remoteDir + "/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar"),
 			//new File("/work/ksauer/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar"),
 			"edu.berkeley.cs.scads.storage.JavaEngine",
       		2048,

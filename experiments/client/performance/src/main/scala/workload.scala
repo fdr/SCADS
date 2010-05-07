@@ -40,6 +40,13 @@ object WorkloadRunner {
 		val zookeeperServerAndPort = System.getProperty("zookeeperServerAndPort")
 		println("  zookeeperServerAndPort=>" + zookeeperServerAndPort + "<")
 
+		val duration = System.getProperty("duration").toInt
+		println("  duration=>" + System.getProperty("duration") + "s<")
+		var warmupDuration = System.getProperty("warmupDuration").toInt
+		println("  warmupDuration=>" + warmupDuration + "s<")
+		val logPath = System.getProperty("logPath")
+		println("  logPath=>" + logPath + "<")
+
 		/*
 		val minUserId = System.getProperty("minUserId").toInt		// could phase out
 		println("minUserId=>"+System.getProperty("minUserId")+"<")
@@ -53,12 +60,6 @@ object WorkloadRunner {
 		println("nIntervals=>"+System.getProperty("nIntervals")+"<")
 		*/
 
-		val duration = System.getProperty("duration").toInt
-		println("  duration=>" + System.getProperty("duration") + "s<")
-		var warmupDuration = System.getProperty("warmupDuration").toInt
-		println("  warmupDuration=>" + warmupDuration + "s<")
-		val logPath = System.getProperty("logPath")
-		println("  logPath=>" + logPath + "<")
 
 		// Deploy cluster
 		implicit val env = new Environment
