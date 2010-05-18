@@ -16,6 +16,9 @@ object WorkloadRunnerForEC2 {
 	
 		val options = new Options();
 		val queryLogger = Logger.getLogger("queryLogger")
+		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		val primitiveLogger = Logger.getLogger("scads.readpolicy.primitives")
+		
 
 		// Setup cmd line args
 		// Data params
@@ -93,6 +96,9 @@ object WorkloadRunnerForEC2 {
 		// Warmup
 		if (warmupDuration > 0) {
 			queryLogger.info("Warming up jvm...")
+			opLogger.info("Warming up jvm...")
+			primitiveLogger.info("Warming up jvm...")
+
 			val threads = (1 to numThreads).toList.map((id) => {	
 				val agent = new WorkloadAgentForEC2(WorkloadGenerators.constantWorkload(mix, paramMap, numUsers, 1, List(warmupDuration*1000), env), id, env)
 				new Thread(agent)
@@ -100,11 +106,17 @@ object WorkloadRunnerForEC2 {
 
 			for(thread <- threads) thread.start
 			for(thread <- threads) thread.join
-		} else
+		} else {
 			queryLogger.info("Skipping warmup...")
+			opLogger.info("Skipping warmup...")
+			primitiveLogger.info("Skipping warmup...")
+		}
 		
 		// Set up threads
 		queryLogger.info("Starting run...")
+		opLogger.info("Starting run...")
+		primitiveLogger.info("Starting run...")
+
 		val threads = (1 to numThreads).toList.map((id) => {	
 			val agent = new WorkloadAgentForEC2(WorkloadGenerators.constantWorkload(mix, paramMap, numUsers, 1, List(duration*1000), env), id, env)
 			new Thread(agent)

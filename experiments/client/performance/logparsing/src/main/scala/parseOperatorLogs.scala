@@ -9,6 +9,7 @@ object ParseOperatorLogs extends Application {
 	// Codes for op level
 	val PRIMITIVE=1
 	val OP=2
+	val QUERY=3
 	
 	val logDir = System.getProperty("logDir")
 	println("Logs obtained from " + logDir + "...")		// logDir shouldn't end with a "/"
@@ -55,7 +56,11 @@ object ParseOperatorLogs extends Application {
 				numB = entries(10).split("=")(1).split("\\.")(0).toInt
 			}
 			
-			if (line.contains("Thread-") && !line.contains("is thinking")) {
+			if (line.contains("Starting run...")) {
+				warmupDone = true
+			}
+			
+			if (line.contains("Thread-") && !line.contains("is thinking") && !line.contains("done")) {
 				val entries = line.split(", ")
 				
 				threadNum = entries(0).split(" +")(5).split("-")(1).split(":")(0).toInt
@@ -74,6 +79,11 @@ object ParseOperatorLogs extends Application {
 					case "selection" => opLevel=OP; opType=7
 					case "sort" => opLevel=OP; opType=8
 					case "topK" => opLevel=OP; opType=9
+					
+					case "userByName" => opLevel=QUERY; opType=1
+					case "userByEmail" => opLevel=QUERY; opType=2
+					case "thoughtsByHashTag" => opLevel=QUERY; opType=3
+					case "thoughtstream" => opLevel=QUERY; opType=4
 				}
 				
 				start = entries(1).split("=")(1)
@@ -90,7 +100,7 @@ object ParseOperatorLogs extends Application {
 				}
 			}
 			
-			if ((lineNum % 100000) == 0)
+			if ((lineNum % 10000) == 0)
 				println("Parsed " + lineNum + " lines...")
 				
 			lineNum = lineNum + 1

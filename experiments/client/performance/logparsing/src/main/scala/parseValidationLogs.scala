@@ -23,7 +23,7 @@ object ParseValidationLogs extends Application {
 	
 	
 	// Read in all log files from directory indicated, one at a time.
-	val out = new FileWriter( new java.io.File(outputDir + "/" + outputFilename) )
+	val out = new FileWriter( new java.io.File(outputDir + "/" + outputFilename) ) // fix this!  if outputDir= null, use logDir
 	out.write("threadNum, opLevel, opType, start_ms, end_ms, latency_ms\n")
 	
 	val dir = new File(logDir)

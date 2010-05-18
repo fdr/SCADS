@@ -59,6 +59,9 @@ abline(v=median(opBin$latency_ms), col="green", lw=2)
 hist(gammaSamples, breaks=25, xlim=c(0,xmax))
 abline(v=median(gammaSamples), col="green", lw=2)
 
-# also works really well!
+
+
+
+
 
 

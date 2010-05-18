@@ -29,6 +29,10 @@ import java.io._
 
 object ClusterDeployment extends ConfigurationActions {
 	def main(args:Array[String]) {
+		val availabilityZone = "us-east-1b"
+		val zookeeperPort = 2181
+		val storageEnginePort = 9000
+		
 		// Get experiment params
 		println("Experiment:")
 		val whichOp = System.getProperty("whichOp").toInt			// only one at a time => take advantage of ||ism using EC2
@@ -39,92 +43,86 @@ object ClusterDeployment extends ConfigurationActions {
 		println("warmupDuration(s)=>" + warmupDuration + "<")
 		val runDuration = System.getProperty("runDuration").toInt
 		println("runDuration(s)=>" + runDuration + "<")
+		val oneBin = System.getProperty("oneBin").toBoolean
+		println("oneBin=>" + oneBin + "<")
 		
 		// # data items:  A
 		println("# data items (A):")
 		val minItemsA = System.getProperty("minItemsA").toInt
 		println("minItemsA=>" + minItemsA + "<")
-		val maxItemsA = System.getProperty("maxItemsA").toInt
-		println("maxItemsA=>" + maxItemsA + "<")
-		val itemsIncA = System.getProperty("itemsIncA").toInt
-		println("itemsIncA=>" + itemsIncA + "<")
+		
+		var maxItemsA = minItemsA	// same if oneBin
+		var itemsIncA = 0
+		
+		if (!oneBin) {
+			maxItemsA = System.getProperty("maxItemsA").toInt
+			println("maxItemsA=>" + maxItemsA + "<")
+			itemsIncA = System.getProperty("itemsIncA").toInt
+			println("itemsIncA=>" + itemsIncA + "<")
+		}
 
 		// # data items:  B
 		println("# data items (B):")
 		val minItemsB = System.getProperty("minItemsB").toInt
 		println("minItemsB=>" + minItemsB + "<")
-		val maxItemsB = System.getProperty("maxItemsB").toInt
-		println("maxItemsB=>" + maxItemsB + "<")
-		val itemsIncB = System.getProperty("itemsIncB").toInt
-		println("itemsIncB=>" + itemsIncB + "<")
+		
+		var maxItemsB = minItemsB	// same if oneBin
+		var itemsIncB = 0
+		
+		if (!oneBin) {
+			maxItemsB = System.getProperty("maxItemsB").toInt
+			println("maxItemsB=>" + maxItemsB + "<")
+			itemsIncB = System.getProperty("itemsIncB").toInt
+			println("itemsIncB=>" + itemsIncB + "<")
+		}
 
 		// data size:  A
 		println("Data size (A):")
 		val minCharsA = System.getProperty("minCharsA").toInt
 		println("minCharsA=>" + minCharsA + "<")
-		val maxCharsA = System.getProperty("maxCharsA").toInt
-		println("maxCharsA=>" + maxCharsA + "<")
-		val charsIncA = System.getProperty("charsIncA").toInt
-		println("charsIncA=>" + charsIncA + "<")
+		
+		var maxCharsA = minCharsA	// same if oneBin
+		var charsIncA = 0
+		
+		if (!oneBin) {
+			maxCharsA = System.getProperty("maxCharsA").toInt
+			println("maxCharsA=>" + maxCharsA + "<")
+			charsIncA = System.getProperty("charsIncA").toInt
+			println("charsIncA=>" + charsIncA + "<")
+		}
 		
 		// data size:  B
 		println("Data size (B):")
 		val minCharsB = System.getProperty("minCharsB").toInt
 		println("minCharsB=>" + minCharsB + "<")
-		val maxCharsB = System.getProperty("maxCharsB").toInt
-		println("maxCharsB=>" + maxCharsB + "<")
-		val charsIncB = System.getProperty("charsIncB").toInt
-		println("charsIncB=>" + charsIncB + "<")
+		
+		var maxCharsB = minCharsB	// same if oneBin
+		var charsIncB = 0
+		
+		if (!oneBin) {
+			maxCharsB = System.getProperty("maxCharsB").toInt
+			println("maxCharsB=>" + maxCharsB + "<")
+			charsIncB = System.getProperty("charsIncB").toInt
+			println("charsIncB=>" + charsIncB + "<")
+		}
 
 		// setup
 		println("Setup:")
-		val zookeeperPort = System.getProperty("zookeeperPort").toInt
-		println("  zookeeperPort=>" + zookeeperPort + "<")
-		val storageEnginePort = System.getProperty("storageEnginePort").toInt
-		println("  storageEnginePort=>" + storageEnginePort + "<")
-		val availabilityZone = System.getProperty("availabilityZone")
-		println("  availabilityZone=>" + availabilityZone + "<")
 		val remoteDir = System.getProperty("remoteDir")
 		println("  remoteDir=>" + remoteDir + "<")
+		val bucket = System.getProperty("bucket")
+		println("  bucket=>" + bucket + "<")
+		val filenamePrefix = System.getProperty("filenamePrefix")
+		println("  filenamePrefix=>" + filenamePrefix + "<")
 		
 		
 		// Deploy cluster
-
-		/*
-		// Make sure the availability zone is available.
-		val resp = (new AmazonEC2Client(System.getenv("AWS_ACCESS_KEY_ID"), System.getenv("AWS_SECRET_ACCESS_KEY"))).describeAvailabilityZones(new DescribeAvailabilityZonesRequest())
-		val zones = resp.getDescribeAvailabilityZonesResult().getAvailabilityZone()
-
-		var zoneToUse:String = null
-		var i = 0;
-		while (i < zones.size() && zoneToUse == null) {
-			println(zones.get(i).getZoneName())
-			println(zones.get(i).getZoneState())
-			
-			if (zones.get(i).getZoneState() == "available")
-				zoneToUse = zones.get(i).getZoneName()
-			i += 1
-		}
-		if (zoneToUse == null) {
-			println("No zones available.")
-			System.exit(0)
-		}
-		*/
-		
-		//val reservationID = EC2Instance.runInstancesAndReturnReservationID("ami-e7a2448e", 3, 3, System.getenv("AWS_KEY_NAME"), "m1.small", "us-east-1c")
-		//val nodes = EC2Instance.runInstances("ami-e7a2448e", 3, 3, System.getenv("AWS_KEY_NAME"), "m1.small", "us-east-1d")
 		println(System.getenv("AWS_KEY_NAME"))
 		println(availabilityZone)
 		val nodes = EC2Instance.runInstances("ami-e7a2448e", 3, 3, System.getenv("AWS_KEY_NAME"), "m1.small", availabilityZone)
-		//val nodes = EC2Instance.myInstances
-		//val nodes = EC2Instance.getReservation(reservationID)
 		println(nodes)
-		//println(EC2Instance.myInstances)
 
 		// Setup Zookeeper
-		//val zookeeperPort = System.getProperty("zookeeperPort").toInt
-		//println("zookeeperPort: " + zookeeperPort)
-		
 		val zooNode = nodes(0)
 		val zooService = deployZooKeeperServer(zooNode, zookeeperPort)
 		zooService.watchFailures
@@ -132,13 +130,8 @@ object ClusterDeployment extends ConfigurationActions {
 		zooService.blockTillUpFor(5)
 		zooNode.blockTillPortOpen(zookeeperPort)
 
-
 		// Setup StorageNode
 		val storageNode = nodes(1)
-		
-		//val storageEnginePort = System.getProperty("storageEnginePort").toInt
-		//println("storageEnginePort: " + storageEnginePort)
-		
 		val storageService = deployStorageEngine(storageNode, zooNode, /*bulkLoad*/ false, storageEnginePort, zookeeperPort)
 		storageService.watchFailures
 		storageService.start
@@ -147,24 +140,9 @@ object ClusterDeployment extends ConfigurationActions {
 		
 		
 		// Setup OpBenchmarker
-		//def createJavaService(target: RunitManager, localJar: File, className: String, maxHeapMb: Int, args: String): RunitService = {
 		val clientNode = nodes(2)
-		//clientNode.executeCommand("rm -rf /mnt/services")
-		//clientNode.executeCommand("rm /root/*")
-		
 		clientNode.executeCommand("mkdir /root/operator")
 		clientNode.executeCommand("mkdir /root/primitive")
-		
-		/*
-		val clientService = createJavaService(clientNode, 
-			new File("/Users/ksauer/Desktop/scads/experiments/client/performance/benchmarking/target/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"),
-			"BenchmarkOps",
-			2048,
-			"-whichOp=1 -numThreads=5 -warmupDuration=10 -runDuration=10 -minItems=5 -maxItems=10 " +  
-			"-itemsInc=5 -minChars=5 -maxChars=10 -charsInc=5 -zookeeperServerAndPort=" + zooNode.hostname + ":" + zookeeperPort + 
-			" -storageNodeServer=" + storageNode.hostname)
-		*/
-
 		/*		
 		val logFileText = Array("log4j.logger.scads.queryexecution.operators=INFO,A1",
 			"log4j.appender.A1=org.apache.log4j.RollingFileAppender",
@@ -185,6 +163,15 @@ object ClusterDeployment extends ConfigurationActions {
 			"log4j.appender.A2.File=/root/primitive/benchmark-output.log",
 			"log4j.appender.A2.layout=org.apache.log4j.PatternLayout",
 			"log4j.appender.A2.layout.ConversionPattern=%d{DATE} [%p] %t: %m%n").mkString("", "\n", "\n")
+
+		val clientArgs = ("-whichOp=" + whichOp + " -numThreads=" + numThreads + " -warmupDuration=" + warmupDuration 
+			+ " -runDuration=" + runDuration + " -oneBin=" + oneBin
+			+ " -minItemsA=" + minItemsA + " -maxItemsA=" + maxItemsA + " -itemsIncA=" + itemsIncA
+			+ " -minItemsB=" + minItemsB + " -maxItemsB=" + maxItemsB + " -itemsIncB=" + itemsIncB
+			+ " -minCharsA=" + minCharsA + " -maxCharsA=" + maxCharsA + " -charsIncA=" + charsIncA
+			+ " -minCharsB=" + minCharsB + " -maxCharsB=" + maxCharsB + " -charsIncB=" + charsIncB
+			+ " -zookeeperServerAndPort=" + zooNode.hostname + ":" + zookeeperPort
+			+ " -storageNodeServer=" + storageNode.hostname)
 																						
 		val clientService = createJavaServiceWithCustomLog4jConfigFile(clientNode, 
 			//new File("/Users/ksauer/Desktop/scads/experiments/client/performance/benchmarking/target/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"),
@@ -198,39 +185,36 @@ object ClusterDeployment extends ConfigurationActions {
 			"-itemsInc=5 -minChars=5 -maxChars=10 -charsInc=5 -zookeeperServerAndPort=" + zooNode.hostname + ":" + zookeeperPort + 
 			" -storageNodeServer=" + storageNode.hostname, logFileText)
 			*/
-			"-whichOp=" + whichOp + " -numThreads=" + numThreads + " -warmupDuration=" + warmupDuration + " -runDuration=" + runDuration
-			+ " -minItemsA=" + minItemsA + " -maxItemsA=" + maxItemsA + " -itemsIncA=" + itemsIncA
-			+ " -minItemsB=" + minItemsB + " -maxItemsB=" + maxItemsB + " -itemsIncB=" + itemsIncB
-			+ " -minCharsA=" + minCharsA + " -maxCharsA=" + maxCharsA + " -charsIncA=" + charsIncA
-			+ " -minCharsB=" + minCharsB + " -maxCharsB=" + maxCharsB + " -charsIncB=" + charsIncB
-			+ " -zookeeperServerAndPort=" + zooNode.hostname + ":" + zookeeperPort
-			+ " -storageNodeServer=" + storageNode.hostname,
+			clientArgs,
 			logFileText)
 		clientService.watchFailures
 		//clientService.start
 		clientService.once
 		clientService.blockTillDown
-		clientNode.executeCommand("tar -cvvf op" + whichOp + ".tar /root/*")
-		clientNode.executeCommand("s3cmd put /root/op" + whichOp + ".tar s3://kristal")
-		//clientNode.download(new File("/root/op" + whichOp + ".tar"), new File("/work/ksauer/4.30.10-op-benchmarking-logs"))
-		//clientNode.download(new File("/root/op" + whichOp + ".tar"), new File("/Users/ksauer/Desktop"))
+		//clientNode.executeCommand("tar -cvvf op" + whichOp + ".tar /root/*")
+		//clientNode.executeCommand("s3cmd put /root/op" + whichOp + ".tar s3://kristal")
+		clientNode.executeCommand("cd " + clientNode.rootDirectory)
+		clientNode.executeCommand("s3cmd get s3://kristal/logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar")
+		clientNode.executeCommand("java -Xmx1G -DlogDir=operator -DoutputFilename=op"+whichOp+"ops.csv -cp logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar parser.ParseOperatorLogs")
+		//clientNode.executeCommand("java -Xmx1G -DlogDir=primitive -DoutputFilename=op"+whichOp+"prims.csv -cp logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar parser.ParseOperatorLogs")
+		// need to bin the prims -- use piql-binner
+		clientNode.executeCommand("s3cmd get s3://kristal/piql-binner.jar")
+		clientNode.executeCommand("java -Xmx1G -cp piql-binner.jar parsing.PrimitiveBinner primitive/ primitive/bins")
 		
-		
-		
+		clientNode.executeCommand("rm *.jar")
+		//val filename = "op" + whichOp + "-" + numThreads + "-threads.tar"
 		/*
-		val jarFilename = System.getProperty("jarFilename")
-		println("jar filename: " + jarFilename)
-		val jarLocalDir = System.getProperty("jarLocalDir")
-		println("jar local dir: " + jarLocalDir)
-		val remoteDir = System.getProperty("remoteDir")
-		println("remote dir: " + remoteDir)
-		
-		clientNode.upload(new File(jarLocalDir + "/" + jarFilename), new File(remoteDir))
-		clientNode.executeCommand("java -cp " + remoteDir + "/" + jarFilename + " BenchmarkOps -whichOp=1 -numThreads=5 -warmupDuration=10" + 
-			" -runDuration=10 -minItems=5 -maxItems=10 " +  
-			"-itemsInc=5 -minChars=5 -maxChars=10 -charsInc=5 -zookeeperServerAndPort=" + zooNode.hostname + ":" + zookeeperPort + 
-			" -storageNodeServer=" + storageNode.hostname + " > out.txt")
+		clientNode.executeCommand("tar -cvvf " + filename + " *")
+		clientNode.executeCommand("gzip " + filename)
+		clientNode.executeCommand("s3cmd put " + filename + ".gz s3://kristal/run-" + bucketSuffix + "/" + filename + ".gz")
 		*/
+		clientNode.executeCommand("tar -cvvf " + filenamePrefix + ".tar *")
+		clientNode.executeCommand("gzip " + filenamePrefix + ".tar")
+		clientNode.executeCommand("s3cmd put " + filenamePrefix + ".tar.gz s3://" + bucket + "/" + filenamePrefix + ".tar.gz")
+		
+		println("zookeeper: " + zooNode.hostname)
+		println("storage engine: " + storageNode.hostname)
+		println("client: " + clientNode.hostname)
 	}
 	
 	

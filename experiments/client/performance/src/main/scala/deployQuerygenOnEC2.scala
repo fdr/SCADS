@@ -24,8 +24,10 @@ import java.io._
 
 object DeployQuerygen extends ConfigurationActions {
 	def main(args:Array[String]) {
-		val scalaengineJarDir = "/Users/ksauer/Desktop/scads/scalaengine/target"
-		val querygenJarDir = "/Users/ksauer/Desktop/scads/experiments/client/performance/target"
+		//val scalaengineJarDir = "/Users/radlab/Desktop/ksauer/Desktop/scads/scalaengine/target"
+		//val querygenJarDir = "/Users/radlab/Desktop/ksauer/Desktop/scads/experiments/client/performance/target"
+		val scalaengineJarDir = "/root"
+		val querygenJarDir = "/root"
 
 		val options = new Options();
 		val opLogger = Logger.getLogger("scads.queryexecution.operators")
@@ -195,6 +197,20 @@ object DeployQuerygen extends ConfigurationActions {
 		//clientNode.executeCommand("tar -cvvf op" + whichOp + ".tar /root/*")
 		//clientNode.executeCommand("s3cmd put /root/op" + whichOp + ".tar s3://kristal")
 		
+		// put files up to s3
+		clientNode.executeCommand("cd /root")
+		clientNode.executeCommand("s3cmd get s3://kristal/logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar")
+		clientNode.executeCommand("java -DlogDir=query -DoutputFilename=queries.csv -cp logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar parser.ParseOperatorLogs")
+		clientNode.executeCommand("java -DlogDir=operator -DoutputFilename=ops.csv -cp logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar parser.ParseOperatorLogs")
+		clientNode.executeCommand("java -DlogDir=primitive -DoutputFilename=prims.csv -cp logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar parser.ParseOperatorLogs")
+		
+		clientNode.executeCommand("s3cmd get s3://kristal/piql-binner.jar")
+		clientNode.executeCommand("java -Xmx1G -cp piql-binner.jar parsing.PrimitiveBinner primitive/ primitive/bins")
+		
+		clientNode.executeCommand("rm *.jar")
+		clientNode.executeCommand("tar -cvvf " + mixChoice + ".tar *")
+		clientNode.executeCommand("gzip " + mixChoice + ".tar")
+		clientNode.executeCommand("s3cmd put " + mixChoice + ".tar.gz s3://kristal")
 		
 	}
 	

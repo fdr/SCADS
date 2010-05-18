@@ -22,14 +22,19 @@ class SimpleThoughtGeneratorWithHashTags (
 	implicit val env:Environment
 ) extends ThoughtGenerator {
 	def generateThoughts(username:String) = {
+		var timestamp = 0
+		
 		(1 to numThoughts).foreach((i) => {
 			val th = new thought
 			th.owner(username)
 			th.thought("thought")
-			th.timestamp(System.currentTimeMillis().toInt)  // TODO:  this doesn't give the right time.  Replace with integers that count up.
+			//th.timestamp(System.currentTimeMillis().toInt)  // TODO:  this doesn't give the right time.  Replace with integers that count up.
+			th.timestamp(timestamp)
 			th.save
 			
 			hashTagGenerator.assignHashTags(th)
+			
+			timestamp += 1
 		})
 	}
 }

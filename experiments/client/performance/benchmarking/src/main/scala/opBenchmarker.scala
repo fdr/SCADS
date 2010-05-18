@@ -11,50 +11,14 @@ import org.apache.commons.cli.HelpFormatter
 
 object BenchmarkOps {
   	def main(args: Array[String]) {
-		// Cmd line args
-		/*
-		println("Experiment:")
-		val whichOp = System.getProperty("whichOp").toInt			// only one at a time => take advantage of ||ism using EC2
-		println("whichOp=>" + whichOp + "<")
-		val numThreads = System.getProperty("numThreads").toInt		// only generate ops from a single machine
-		println("numThreads=>" + numThreads + "<")
-		val warmupDuration = System.getProperty("warmupDuration").toInt
-		println("warmupDuration(s)=>" + warmupDuration + "<")
-		val runDuration = System.getProperty("runDuration").toInt
-		println("runDuration(s)=>" + runDuration + "<")
-		
-		// # data items
-		println("# data items:")
-		val minItems = System.getProperty("minItems").toInt
-		println("minItems=>" + minItems + "<")
-		val maxItems = System.getProperty("maxItems").toInt
-		println("maxItems=>" + maxItems + "<")
-		val itemsInc = System.getProperty("itemsInc").toInt
-		println("itemsInc=>" + itemsInc + "<")
-
-		// data size
-		println("Data size:")
-		val minChars = System.getProperty("minChars").toInt
-		println("minChars=>" + minChars + "<")
-		val maxChars = System.getProperty("maxChars").toInt
-		println("maxChars=>" + maxChars + "<")
-		val charsInc = System.getProperty("charsInc").toInt
-		println("charsInc=>" + charsInc + "<")
-		
-		// setup
-		println("Setup:")
-		val zookeeperServerAndPort = System.getProperty("zookeeperServerAndPort")
-		println("  zookeeperServerAndPort=>" + zookeeperServerAndPort + "<")
-		val storageNodeServer = System.getProperty("storageNodeServer")
-		println("  storageNodeServer=>" + storageNodeServer + "<")
-		*/
-		
 		val opLogger = Logger.getLogger("scads.queryexecution.operators")
 		val primitiveLogger = Logger.getLogger("scads.readpolicy.primitives")
 		
+		// Cmd line args
 		val options = new Options();
 		// Experiment
 		options.addOption("whichOp", true, "specify operator to benchmark")
+		options.addOption("oneBin", true, "indicates that you only want one bin")
 		options.addOption("numThreads", true, "how many threads")
 		options.addOption("warmupDuration", true, "duration of jvm warmup (s)")
 		options.addOption("runDuration", true, "duration of run (s)")
@@ -89,22 +53,22 @@ object BenchmarkOps {
 		// Get args from cmd line
 		// Experiment
 		val whichOp = cmd.getOptionValue("whichOp").toInt
-		//println("Benchmarking op " + whichOp + "...")
 		opLogger.info("Benchmarking op " + whichOp + "...")
 		primitiveLogger.info("Benchmarking op " + whichOp + "...")
 		
+		val oneBin = cmd.getOptionValue("oneBin").toBoolean
+		opLogger.info("One bin? " + oneBin)
+		primitiveLogger.info("One bin? " + oneBin)
+
 		val numThreads = cmd.getOptionValue("numThreads").toInt
-		//println("Using " + numThreads + " threads.")
 		opLogger.info("Using " + numThreads + " threads.")
 		primitiveLogger.info("Using " + numThreads + " threads.")
 		
 		val warmupDuration = cmd.getOptionValue("warmupDuration").toInt
-		//println("Warmup duration (s):  " + warmupDuration)
 		opLogger.info("Warmup duration (s):  " + warmupDuration)
 		primitiveLogger.info("Warmup duration (s):  " + warmupDuration)
 		
 		val runDuration = cmd.getOptionValue("runDuration").toInt
-		//println("Run duration (s):  " + runDuration)
 		opLogger.info("Run duration (s):  " + runDuration)
 		primitiveLogger.info("Run duration (s):  " + runDuration)
 		
@@ -116,25 +80,24 @@ object BenchmarkOps {
 		val maxItemsA = cmd.getOptionValue("maxItemsA").toInt
 		opLogger.info("Max items (A): " + maxItemsA)
 		primitiveLogger.info("Max items (A): " + maxItemsA)
-		
+
 		val itemsIncA = cmd.getOptionValue("itemsIncA").toInt
 		opLogger.info("Items inc (A): " + itemsIncA)
-		primitiveLogger.info("Items inc (A): " + itemsIncA)
+		primitiveLogger.info("Items inc (A): " + itemsIncA)			
 		
 		// # data items:  B
 		val minItemsB = cmd.getOptionValue("minItemsB").toInt
 		opLogger.info("Min items (B): " + minItemsB)
 		primitiveLogger.info("Min items (B): " + minItemsB)
-		
+
 		val maxItemsB = cmd.getOptionValue("maxItemsB").toInt
 		opLogger.info("Max items (B): " + maxItemsB)
 		primitiveLogger.info("Max items (B): " + maxItemsB)
-		
+
 		val itemsIncB = cmd.getOptionValue("itemsIncB").toInt
 		opLogger.info("Items inc (B): " + itemsIncB)
 		primitiveLogger.info("Items inc (B): " + itemsIncB)
-		
-		
+				
 		// Data size:  A
 		val minCharsA = cmd.getOptionValue("minCharsA").toInt
 		opLogger.info("Min chars (A): " + minCharsA)
@@ -143,21 +106,20 @@ object BenchmarkOps {
 		val maxCharsA = cmd.getOptionValue("maxCharsA").toInt
 		opLogger.info("Max chars (A): " + maxCharsA)
 		primitiveLogger.info("Max chars (A): " + maxCharsA)
-		
+
 		val charsIncA = cmd.getOptionValue("charsIncA").toInt
 		opLogger.info("Chars inc (A): " + charsIncA)
 		primitiveLogger.info("Chars inc (A): " + charsIncA)
-		
 
 		// Data size:  B
 		val minCharsB = cmd.getOptionValue("minCharsB").toInt
 		opLogger.info("Min chars (B): " + minCharsB)
 		primitiveLogger.info("Min chars (B): " + minCharsB)
-		
+
 		val maxCharsB = cmd.getOptionValue("maxCharsB").toInt
 		opLogger.info("Max chars (B): " + maxCharsB)
 		primitiveLogger.info("Max chars (B): " + maxCharsB)
-		
+
 		val charsIncB = cmd.getOptionValue("charsIncB").toInt
 		opLogger.info("Chars inc (B): " + charsIncB)
 		primitiveLogger.info("Chars inc (B): " + charsIncB)
@@ -173,28 +135,16 @@ object BenchmarkOps {
 		//println("Storage Node: " + storageNodeServer)
 		opLogger.info("Storage Node: " + storageNodeServer)
 		primitiveLogger.info("Storage Node: " + storageNodeServer)
+	
 		
 		
 		// Deploy cluster
+		opLogger.info("Setting up full cluster...")
+		primitiveLogger.info("Setting up full cluster...")
+
 		implicit val env = new Environment
 		env.session = new TrivialSession
 		env.executor = new TrivialExecutor
-
-		/*
-		if (storageNodeServer == null) {
-			println("Setting up cluster in process...")
-			env.placement = new TestCluster
-		} else {
-			println("Setting up full cluster...")
-			val n = new StorageNode(storageNodeServer, 9000)
-			Queries.configureStorageEngine(n)  // set responsibility policy
-			env.placement = new ZooKeptCluster(zookeeperServerAndPort)
-		}
-		println("Cluster ready.")
-		*/
-		//println("Setting up full cluster...")
-		opLogger.info("Setting up full cluster...")
-		primitiveLogger.info("Setting up full cluster...")
 		
 		val n = new StorageNode(storageNodeServer, 9000)
 		Queries.configureStorageEngine(n)  // set responsibility policy
@@ -202,11 +152,24 @@ object BenchmarkOps {
 		
 		
 		// Benchmark requested op
-		val itemsRangeA = minItemsA to maxItemsA by itemsIncA
-		val itemsRangeB = minItemsB to maxItemsB by itemsIncB
+		var itemsRangeA:Seq[Int] = null
+		var itemsRangeB:Seq[Int] = null
+		var charsRangeA:Seq[Int] = null
+		var charsRangeB:Seq[Int] = null
 		
-		val charsRangeA = minCharsA to maxCharsA by charsIncA
-		val charsRangeB = minCharsB to maxCharsB by charsIncB
+		if (oneBin) {
+			itemsRangeA = List(minItemsA)
+			itemsRangeB = List(minItemsB)
+
+			charsRangeA = List(minCharsA)
+			charsRangeB = List(minCharsB)
+		} else {
+			itemsRangeA = minItemsA to maxItemsA by itemsIncA
+			itemsRangeB = minItemsB to maxItemsB by itemsIncB
+
+			charsRangeA = minCharsA to maxCharsA by charsIncA
+			charsRangeB = minCharsB to maxCharsB by charsIncB
+		}
 		
 		
 		var warmupDone = false
@@ -314,7 +277,7 @@ class BenchmarkAgent(opType:Int, duration_ms:Int, aSize:Int, bSize:Int, numA:Int
 		val primitiveLogger = Logger.getLogger("scads.readpolicy.primitives")
 
 		val startTime_ms = System.currentTimeMillis()
-		val thinkTime_ms = 10
+		val thinkTime_ms = 1
 		
 		var currentTime_ms = System.currentTimeMillis()
 		while (currentTime_ms < (startTime_ms + duration_ms.longValue())) {
