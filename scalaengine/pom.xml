@@ -25,12 +25,15 @@
         <!--
 		<dependency>
 			<groupId>com.sleepycat</groupId>
+<<<<<<< HEAD
 			<artifactId>jejmx</artifactId>
 			<version>3.3.87</version>
 		</dependency>
         -->
 		<dependency>
 			<groupId>com.sleepycat</groupId>
+=======
+>>>>>>> kristal
 			<artifactId>je</artifactId>
 			<version>4.0.71</version>
 		</dependency>

@@ -97,7 +97,8 @@ object ScadsDeployment extends ConfigurationActions {
 			cmdLineArgs)
 	}
 
-	protected def deployStorageEngine(target: RunitManager, zooServer: RemoteMachine, bulkLoad: Boolean): RunitService = {
+	//protected def deployStorageEngine(target: RunitManager, zooServer: RemoteMachine, bulkLoad: Boolean): RunitService = {
+	def deployStorageEngine(target: RunitManager, zooServer: RemoteMachine, bulkLoad: Boolean): RunitService = {
     val bulkLoadFlag = if(bulkLoad) " -b " else ""
 		createJavaService(target, new File("target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar"),
 			"edu.berkeley.cs.scads.storage.JavaEngine",
@@ -105,9 +106,11 @@ object ScadsDeployment extends ConfigurationActions {
 			"-p " + storageEnginePort + " -z " + zooServer.hostname + ":" + zookeeperPort + bulkLoadFlag)
 	}
 
-	protected def deployZooKeeperServer(target: RunitManager): RunitService = {
+	//protected def deployZooKeeperServer(target: RunitManager): RunitService = {
+	def deployZooKeeperServer(target: RunitManager): RunitService = {
 		val zooStorageDir = createDirectory(target, new File(target.rootDirectory, "zookeeperdata"))
-		val zooService = createJavaService(target, new File("target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar"),
+		//val zooService = createJavaService(target, new File("target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar"),
+		val zooService = createJavaService(target, new File("/Users/ksauer/Desktop/scads/experiments/client/scale/target/scale-1.0-SNAPSHOT-jar-with-dependencies.jar"),
 			"org.apache.zookeeper.server.quorum.QuorumPeerMain",
       1024,
 			"zoo.cnf")
