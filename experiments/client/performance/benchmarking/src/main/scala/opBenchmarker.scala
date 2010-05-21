@@ -145,7 +145,7 @@ object BenchmarkOps {
 		implicit val env = new Environment
 		env.session = new TrivialSession
 		env.executor = new TrivialExecutor
-		
+
 		val n = new StorageNode(storageNodeServer, 9000)
 		Queries.configureStorageEngine(n)  // set responsibility policy
 		env.placement = new ZooKeptCluster(zookeeperServerAndPort)

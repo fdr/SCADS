@@ -27,25 +27,29 @@ abstract class ReadPolicy {
 
 object ReadRandomPolicy extends ReadPolicy {
 	val logger = Logger.getLogger("scads.readpolicy.readrandom")
+	val primitiveLogger = Logger.getLogger("scads.readpolicy.primitives")
+	
 	val rand = new scala.util.Random()
 
 	def get(namespace: String, key: String, keyClass: List[Class[Field]], versioned: Boolean)(implicit env: Environment): Tuple = {
-		val primitiveLogger = Logger.getLogger("scads.readpolicy.primitives")
+		//val primitiveLogger = Logger.getLogger("scads.readpolicy.primitives")
 		
 		val nodes = env.placement.locate(namespace, key)
 		val node = nodes(rand.nextInt(nodes.length))
 
-		// Instrumenting to record latency of "get" op
-		val threadName = Thread.currentThread().getName()
-		
-		val startt = System.nanoTime()
+		var startt:Long = 0
+		var endt:Long = 0
+
 		//val startt_ms = System.currentTimeMillis()
 		
 		val rec = node.useConnection((c) => {
-			c.get(namespace, key)
+			startt = System.nanoTime()
+			val getRes = c.get(namespace, key)
+			endt = System.nanoTime()
+
+			getRes
 		})
 		
-		val endt = System.nanoTime()
 		//val endt_ms = System.currentTimeMillis()
 		val latency = endt-startt
 		
@@ -59,14 +63,10 @@ object ReadRandomPolicy extends ReadPolicy {
 	}
 
 	def get_set(namespace: String, startKey: String, endKey: String, limit: Int, keyClass: List[Class[Field]], versioned: Boolean)(implicit env: Environment): List[Tuple] = {
-		val primitiveLogger = Logger.getLogger("scads.readpolicy.primitives")
-
 		val node = env.placement.locate(namespace, startKey)
+		var startt:Long = 0
+		var endt:Long = 0
 
-		// Instrumenting to record latency of "get" op
-		val threadName = Thread.currentThread().getName()
-		
-		val startt = System.nanoTime()
 		//val startt_ms = System.currentTimeMillis()
 
 		val result = node(0).useConnection((c) => {
@@ -76,10 +76,13 @@ object ReadRandomPolicy extends ReadPolicy {
 			rset.setType(edu.berkeley.cs.scads.thrift.RecordSetType.RST_RANGE)
 			rset.setRange(range)
 
-			c.get_set(namespace, rset)
+			startt = System.nanoTime()
+			val get_setRes = c.get_set(namespace, rset)
+			endt = System.nanoTime()
+
+			get_setRes
 		})
 
-		val endt = System.nanoTime()
 		//val endt_ms = System.currentTimeMillis()
 		val latency = endt-startt
 

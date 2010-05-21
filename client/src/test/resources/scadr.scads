@@ -3,6 +3,7 @@ ENTITY user
 	string name,
 	string password,
 	string email,
+	string hometown,
 	string profileData
 	PRIMARY(name)
 }
@@ -95,6 +96,11 @@ WHERE user.name = [1:name]
 QUERY userByEmail
 FETCH user
 WHERE email = [1:email]
+LIMIT 10 MAX 10
+
+QUERY userByHometown
+FETCH user
+WHERE hometown = [1:hometown]
 LIMIT 10 MAX 10
 
 QUERY finduserByPK

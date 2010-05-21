@@ -384,13 +384,13 @@ userByEmailSampler = function(h2, h3, h6, sampleID, numSamples) {
 		samples[i] = samples[i] + sample(h6$mids, 1, replace=TRUE, prob=h6$density)
 	}
 
-	save(samples, file=paste("~/Desktop/userByEmailSamples/sample", sampleID,".RData",sep=""))
+	#save(samples, file=paste("~/Desktop/userByEmailSamples/sample", sampleID,".RData",sep=""))
 
 	return(samples)
 }
 
 
-numSamples = 1000
+numSamples = 10000
 quantiles = matrix(nrow=1, ncol=10)
 for (i in 1:10) {
 	samples = userByEmailSampler(h2, h3, h6, i, numSamples)
@@ -413,22 +413,22 @@ save(list=ls(), file="~/userByEmail.RData")
 load(file="~/Desktop/userByEmail.RData")
 ls()
 
-pdf(file="~/Desktop/MSFigs/userByEmail.pdf")
+pdf(file="~/Desktop/MSReport/MSFigs/userByHometown.pdf")
 
 par(mfrow=c(2,1))
 par(mar=c(5,5,4,2)+0.1)
 xmax=100
-hist(samples, breaks=100, xlim=c(0,xmax), xlab="Latency (ms)", main="userByEmail: latency distribution, predicted")
-abline(v=median(samples), col="red", lw=2)
-abline(v=quantile(samples,0.9), col="green", lw=2)
-abline(v=quantile(samples,0.99), col="blue", lw=2)
-legend("topright", legend=c(paste("median=", round(median(samples)), "ms"), paste("90th=", round(quantile(samples, 0.9)), "ms"), paste("99th=", round(quantile(samples, 0.99)), "ms")), lwd=2, col=c("red", "green", "blue"))
-
-hist(query$latency_ms, breaks=100, xlim=c(0,xmax), xlab="Latency (ms)", main="userByEmail: latency distribution, actual")
+hist(query$latency_ms, breaks=100, xlim=c(0,xmax), xlab="Latency (ms)", main="userByHometown: latency distribution, actual")
 abline(v=median(query$latency_ms), col="red", lw=2)
 abline(v=quantile(query$latency_ms,0.9), col="green", lw=2)
 abline(v=quantile(query$latency_ms,0.99), col="blue", lw=2)
 legend("topright", legend=c(paste("median=", round(median(query$latency_ms)), "ms"), paste("90th=", round(quantile(query$latency_ms, 0.9)), "ms"), paste("99th=", round(quantile(query$latency_ms, 0.99)), "ms")), lwd=2, col=c("red", "green", "blue"))
+
+hist(samples, breaks=100, xlim=c(0,xmax), xlab="Latency (ms)", main="userByHometown: latency distribution, predicted")
+abline(v=median(samples), col="red", lw=2)
+abline(v=quantile(samples,0.9), col="green", lw=2)
+abline(v=quantile(samples,0.99), col="blue", lw=2)
+legend("topright", legend=c(paste("median=", round(median(samples)), "ms"), paste("90th=", round(quantile(samples, 0.9)), "ms"), paste("99th=", round(quantile(samples, 0.99)), "ms")), lwd=2, col=c("red", "green", "blue"))
 
 dev.off()
 

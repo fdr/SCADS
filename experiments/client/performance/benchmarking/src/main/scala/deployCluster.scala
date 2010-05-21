@@ -29,95 +29,137 @@ import java.io._
 
 object ClusterDeployment extends ConfigurationActions {
 	def main(args:Array[String]) {
-		val availabilityZone = "us-east-1b"
+		// These params don't change from run to run
+		val availabilityZone = "us-east-1c"
 		val zookeeperPort = 2181
 		val storageEnginePort = 9000
+		val remoteDir = "/root"
 		
-		// Get experiment params
-		println("Experiment:")
-		val whichOp = System.getProperty("whichOp").toInt			// only one at a time => take advantage of ||ism using EC2
-		println("whichOp=>" + whichOp + "<")
-		val numThreads = System.getProperty("numThreads").toInt		// only generate ops from a single machine
-		println("numThreads=>" + numThreads + "<")
-		val warmupDuration = System.getProperty("warmupDuration").toInt
-		println("warmupDuration(s)=>" + warmupDuration + "<")
-		val runDuration = System.getProperty("runDuration").toInt
-		println("runDuration(s)=>" + runDuration + "<")
-		val oneBin = System.getProperty("oneBin").toBoolean
-		println("oneBin=>" + oneBin + "<")
+		/*
+		System.setenv("AWS_KEY_NAME", "kristal")
+		System.setenv("AWS_SECRET_ACCESS_KEY", "UXZ7FDk74XQk4NxgN9K0oK6iot7eL1A1V/6xX2LB")
+		System.setenv("AWS_ACCESS_KEY_ID", "026FE3D736A8XTV3D382")
+		System.setenv("AWS_KEY_PATH", "/root/kristal")
+		*/
+		
+		// Cmd line args
+		val options = new Options();
+		// Experiment
+		options.addOption("whichOp", true, "specify operator to benchmark")
+		options.addOption("oneBin", true, "indicates that you only want one bin")
+		options.addOption("numThreads", true, "how many threads")
+		options.addOption("warmupDuration", true, "duration of jvm warmup (s)")
+		options.addOption("runDuration", true, "duration of run (s)")
 		
 		// # data items:  A
-		println("# data items (A):")
-		val minItemsA = System.getProperty("minItemsA").toInt
-		println("minItemsA=>" + minItemsA + "<")
+		options.addOption("minItemsA", true, "min items of type A")
+		options.addOption("maxItemsA", true, "max items of type A")
+		options.addOption("itemsIncA", true, "items inc of type A")
+
+		// # data items:  B
+		options.addOption("minItemsB", true, "min items of type B")
+		options.addOption("maxItemsB", true, "max items of type B")
+		options.addOption("itemsIncB", true, "items inc of type B")
+
+		// Data size:  A
+		options.addOption("minCharsA", true, "min chars of type A")
+		options.addOption("maxCharsA", true, "max chars of type A")
+		options.addOption("charsIncA", true, "chars inc of type A")
 		
-		var maxItemsA = minItemsA	// same if oneBin
+		// Data size:  B
+		options.addOption("minCharsB", true, "min chars of type B")
+		options.addOption("maxCharsB", true, "max chars of type B")
+		options.addOption("charsIncB", true, "chars inc of type B")
+		
+		// Setup
+		options.addOption("bucket", true, "bucket on S3 for uploading run files")
+		options.addOption("filenamePrefix", true, "prefix of run filename")
+		
+
+		val parser = new GnuParser();
+		val cmd = parser.parse(options, args);
+
+		// Get args from cmd line
+		// Experiment
+		val whichOp = cmd.getOptionValue("whichOp").toInt
+		println("Benchmarking op " + whichOp + "...")
+		val oneBin = cmd.getOptionValue("oneBin").toBoolean
+		println("One bin? " + oneBin)
+		val numThreads = cmd.getOptionValue("numThreads").toInt
+		println("Using " + numThreads + " threads.")
+		val warmupDuration = cmd.getOptionValue("warmupDuration").toInt
+		println("Warmup duration (s):  " + warmupDuration)
+		val runDuration = cmd.getOptionValue("runDuration").toInt
+		println("Run duration (s):  " + runDuration)
+		
+		// # data items:  A
+		val minItemsA = cmd.getOptionValue("minItemsA").toInt
+		println("Min items (A): " + minItemsA)
+		
+		var maxItemsA = minItemsA
 		var itemsIncA = 0
 		
 		if (!oneBin) {
-			maxItemsA = System.getProperty("maxItemsA").toInt
-			println("maxItemsA=>" + maxItemsA + "<")
-			itemsIncA = System.getProperty("itemsIncA").toInt
-			println("itemsIncA=>" + itemsIncA + "<")
+			val maxItemsA = cmd.getOptionValue("maxItemsA").toInt
+			println("Max items (A): " + maxItemsA)
+			val itemsIncA = cmd.getOptionValue("itemsIncA").toInt
+			println("Items inc (A): " + itemsIncA)
 		}
-
-		// # data items:  B
-		println("# data items (B):")
-		val minItemsB = System.getProperty("minItemsB").toInt
-		println("minItemsB=>" + minItemsB + "<")
 		
-		var maxItemsB = minItemsB	// same if oneBin
+		// # data items:  B
+		val minItemsB = cmd.getOptionValue("minItemsB").toInt
+		println("Min items (B): " + minItemsB)
+		
+		var maxItemsB = minItemsB
 		var itemsIncB = 0
 		
 		if (!oneBin) {
-			maxItemsB = System.getProperty("maxItemsB").toInt
-			println("maxItemsB=>" + maxItemsB + "<")
-			itemsIncB = System.getProperty("itemsIncB").toInt
-			println("itemsIncB=>" + itemsIncB + "<")
+			val maxItemsB = cmd.getOptionValue("maxItemsB").toInt
+			println("Max items (B): " + maxItemsB)
+			val itemsIncB = cmd.getOptionValue("itemsIncB").toInt
+			println("Items inc (B): " + itemsIncB)
 		}
-
-		// data size:  A
-		println("Data size (A):")
-		val minCharsA = System.getProperty("minCharsA").toInt
-		println("minCharsA=>" + minCharsA + "<")
+				
+		// Data size:  A
+		val minCharsA = cmd.getOptionValue("minCharsA").toInt
+		println("Min chars (A): " + minCharsA)
 		
-		var maxCharsA = minCharsA	// same if oneBin
+		var maxCharsA = minCharsA
 		var charsIncA = 0
 		
 		if (!oneBin) {
-			maxCharsA = System.getProperty("maxCharsA").toInt
-			println("maxCharsA=>" + maxCharsA + "<")
-			charsIncA = System.getProperty("charsIncA").toInt
-			println("charsIncA=>" + charsIncA + "<")
+			val maxCharsA = cmd.getOptionValue("maxCharsA").toInt
+			println("Max chars (A): " + maxCharsA)
+			val charsIncA = cmd.getOptionValue("charsIncA").toInt
+			println("Chars inc (A): " + charsIncA)
 		}
+
+		// Data size:  B
+		val minCharsB = cmd.getOptionValue("minCharsB").toInt
+		println("Min chars (B): " + minCharsB)
 		
-		// data size:  B
-		println("Data size (B):")
-		val minCharsB = System.getProperty("minCharsB").toInt
-		println("minCharsB=>" + minCharsB + "<")
-		
-		var maxCharsB = minCharsB	// same if oneBin
+		var maxCharsB = minCharsB
 		var charsIncB = 0
 		
 		if (!oneBin) {
-			maxCharsB = System.getProperty("maxCharsB").toInt
-			println("maxCharsB=>" + maxCharsB + "<")
-			charsIncB = System.getProperty("charsIncB").toInt
-			println("charsIncB=>" + charsIncB + "<")
+			val maxCharsB = cmd.getOptionValue("maxCharsB").toInt
+			println("Max chars (B): " + maxCharsB)
+			val charsIncB = cmd.getOptionValue("charsIncB").toInt
+			println("Chars inc (B): " + charsIncB)
 		}
 
-		// setup
+		// Setup
 		println("Setup:")
-		val remoteDir = System.getProperty("remoteDir")
-		println("  remoteDir=>" + remoteDir + "<")
-		val bucket = System.getProperty("bucket")
-		println("  bucket=>" + bucket + "<")
-		val filenamePrefix = System.getProperty("filenamePrefix")
-		println("  filenamePrefix=>" + filenamePrefix + "<")
+		val bucket = cmd.getOptionValue("bucket")
+		println("  S3 bucket: " + bucket)
+		val filenamePrefix = cmd.getOptionValue("filenamePrefix")
+		println("  Filename prefix: " + filenamePrefix)
 		
 		
 		// Deploy cluster
+		println(System.getenv("USER"))
 		println(System.getenv("AWS_KEY_NAME"))
+		println(System.getenv())
 		println(availabilityZone)
 		val nodes = EC2Instance.runInstances("ami-e7a2448e", 3, 3, System.getenv("AWS_KEY_NAME"), "m1.small", availabilityZone)
 		println(nodes)
@@ -164,14 +206,16 @@ object ClusterDeployment extends ConfigurationActions {
 			"log4j.appender.A2.layout=org.apache.log4j.PatternLayout",
 			"log4j.appender.A2.layout.ConversionPattern=%d{DATE} [%p] %t: %m%n").mkString("", "\n", "\n")
 
+
+		// UPDATE:  pass in args.mkString("", "\n", "\n") + zookeeper and storagenode params
 		val clientArgs = ("-whichOp=" + whichOp + " -numThreads=" + numThreads + " -warmupDuration=" + warmupDuration 
 			+ " -runDuration=" + runDuration + " -oneBin=" + oneBin
 			+ " -minItemsA=" + minItemsA + " -maxItemsA=" + maxItemsA + " -itemsIncA=" + itemsIncA
 			+ " -minItemsB=" + minItemsB + " -maxItemsB=" + maxItemsB + " -itemsIncB=" + itemsIncB
 			+ " -minCharsA=" + minCharsA + " -maxCharsA=" + maxCharsA + " -charsIncA=" + charsIncA
 			+ " -minCharsB=" + minCharsB + " -maxCharsB=" + maxCharsB + " -charsIncB=" + charsIncB
-			+ " -zookeeperServerAndPort=" + zooNode.hostname + ":" + zookeeperPort
-			+ " -storageNodeServer=" + storageNode.hostname)
+			+ " -zookeeperServerAndPort=" + zooNode.privateDnsName + ":" + zookeeperPort
+			+ " -storageNodeServer=" + storageNode.privateDnsName)
 																						
 		val clientService = createJavaServiceWithCustomLog4jConfigFile(clientNode, 
 			//new File("/Users/ksauer/Desktop/scads/experiments/client/performance/benchmarking/target/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"),
@@ -196,7 +240,7 @@ object ClusterDeployment extends ConfigurationActions {
 		clientNode.executeCommand("cd " + clientNode.rootDirectory)
 		clientNode.executeCommand("s3cmd get s3://kristal/logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar")
 		clientNode.executeCommand("java -Xmx1G -DlogDir=operator -DoutputFilename=op"+whichOp+"ops.csv -cp logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar parser.ParseOperatorLogs")
-		//clientNode.executeCommand("java -Xmx1G -DlogDir=primitive -DoutputFilename=op"+whichOp+"prims.csv -cp logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar parser.ParseOperatorLogs")
+		clientNode.executeCommand("java -Xmx1G -DlogDir=primitive -DoutputFilename=op"+whichOp+"prims.csv -cp logparsing-1.0-SNAPSHOT-jar-with-dependencies.jar parser.ParseOperatorLogs")
 		// need to bin the prims -- use piql-binner
 		clientNode.executeCommand("s3cmd get s3://kristal/piql-binner.jar")
 		clientNode.executeCommand("java -Xmx1G -cp piql-binner.jar parsing.PrimitiveBinner primitive/ primitive/bins")
@@ -212,14 +256,15 @@ object ClusterDeployment extends ConfigurationActions {
 		clientNode.executeCommand("gzip " + filenamePrefix + ".tar")
 		clientNode.executeCommand("s3cmd put " + filenamePrefix + ".tar.gz s3://" + bucket + "/" + filenamePrefix + ".tar.gz")
 		
-		println("zookeeper: " + zooNode.hostname)
-		println("storage engine: " + storageNode.hostname)
-		println("client: " + clientNode.hostname)
+		println("zookeeper: " + zooNode.privateDnsName)
+		println("storage engine: " + storageNode.privateDnsName)
+		println("client: " + clientNode.privateDnsName)
 	}
 	
 	
 	def deployZooKeeperServer(target: RunitManager, zookeeperPort:Int): RunitService = {
-		val remoteDir = System.getProperty("remoteDir")
+		//val remoteDir = System.getProperty("remoteDir")
+		val remoteDir = "/root"
 		
 		val zooStorageDir = createDirectory(target, new File(target.rootDirectory, "zookeeperdata"))
 		val zooService = createJavaService(target, 
@@ -246,8 +291,11 @@ object ClusterDeployment extends ConfigurationActions {
 	}
 	
 	
-	def deployStorageEngine(target: RunitManager, zooServer: RemoteMachine, bulkLoad: Boolean, storageEnginePort:Int, zookeeperPort:Int): RunitService = {
-		val remoteDir = System.getProperty("remoteDir")
+	//def deployStorageEngine(target: RunitManager, zooServer: RemoteMachine, bulkLoad: Boolean, storageEnginePort:Int, zookeeperPort:Int): RunitService = {
+	def deployStorageEngine(target: RunitManager, zooServer: EC2Instance, bulkLoad: Boolean, storageEnginePort:Int, zookeeperPort:Int): RunitService = {
+		//val remoteDir = System.getProperty("remoteDir")
+		val remoteDir = "/root"
+		
     	val bulkLoadFlag = if(bulkLoad) " -b " else ""
 		createJavaService(target, 
 			//new File("/Users/ksauer/Desktop/scads/scalaengine/target/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar"),
@@ -255,7 +303,7 @@ object ClusterDeployment extends ConfigurationActions {
 			//new File("/work/ksauer/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar"),
 			"edu.berkeley.cs.scads.storage.JavaEngine",
       		2048,
-			"-p " + storageEnginePort + " -z " + zooServer.hostname + ":" + zookeeperPort + bulkLoadFlag)
+			"-p " + storageEnginePort + " -z " + zooServer.privateDnsName + ":" + zookeeperPort + bulkLoadFlag)
 	}
 	
 }

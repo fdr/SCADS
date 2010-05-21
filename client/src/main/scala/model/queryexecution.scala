@@ -16,7 +16,7 @@ abstract trait QueryExecutor {
 	type EntityStream = Seq[Entity]
 	type LimitValue = Field
 
-	//val opLogger = Logger.getLogger("scads.queryexecution.operators")
+	val opLogger = Logger.getLogger("scads.queryexecution.operators")
 
 	/* Metadata Catalog */
 	protected val nsKeys: Map[String, List[Class[Field]]]
@@ -25,9 +25,8 @@ abstract trait QueryExecutor {
 	/* Tuple Providers */
 	//protected def singleGet(namespace: String, key: Field, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
 	def singleGet(namespace: String, key: Field, policy: ReadPolicy)(implicit env: Environment): TupleStream = {	
-		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		//val opLogger = Logger.getLogger("scads.queryexecution.operators")
 
-		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 		
 		val x = List(policy.get(namespace, key.serializeKey, nsKeys(namespace), nsVersions(namespace)))
@@ -43,9 +42,8 @@ abstract trait QueryExecutor {
 
 	//protected def prefixGet(namespace: String, prefix: Field, limit: LimitValue, ascending: Boolean, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
 	def prefixGet(namespace: String, prefix: Field, limit: LimitValue, ascending: Boolean, policy: ReadPolicy)(implicit env: Environment): TupleStream = {
-		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		//val opLogger = Logger.getLogger("scads.queryexecution.operators")
 		
-		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
 		val serializedPrefix = prefix.serializeKey
@@ -66,9 +64,8 @@ abstract trait QueryExecutor {
 
 	//protected def sequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleStream)(implicit env: Environment): TupleStream = {
 	def sequentialDereferenceIndex(targetNamespace: String, policy: ReadPolicy, child: TupleStream)(implicit env: Environment): TupleStream = {
-		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		//val opLogger = Logger.getLogger("scads.queryexecution.operators")
 		
-		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
 		val x = child.map((t) => {
@@ -86,9 +83,8 @@ abstract trait QueryExecutor {
 
 	//protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: LimitValue, ascending: Boolean, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
 	def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: LimitValue, ascending: Boolean, policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
-		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		//val opLogger = Logger.getLogger("scads.queryexecution.operators")
 		
-		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
 		val x = child.flatMap((e) => {
@@ -114,9 +110,8 @@ abstract trait QueryExecutor {
 
 	//protected def pointerJoin(namespace: String, conditions: List[JoinCondition], policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
 	def pointerJoin(namespace: String, conditions: List[JoinCondition], policy: ReadPolicy, child: EntityStream)(implicit env: Environment): TupleStream = {
-		val opLogger = Logger.getLogger("scads.queryexecution.operators")
+		//val opLogger = Logger.getLogger("scads.queryexecution.operators")
 		
-		val threadName = Thread.currentThread().getName()
 		val startt = System.nanoTime()
 
 		val x = child.map((e) => {
@@ -140,9 +135,7 @@ abstract trait QueryExecutor {
 	/* Entity Providers */
 	//protected def materialize[EntityType <: Entity](entityClass: Class[EntityType], child: TupleStream)(implicit env: Environment): Seq[EntityType] = {
 	def materialize[EntityType <: Entity](entityClass: Class[EntityType], child: TupleStream)(implicit env: Environment): Seq[EntityType] = {
-		val opLogger = Logger.getLogger("scads.queryexecution.operators")
-		
-		val threadName = Thread.currentThread().getName()
+		//val opLogger = Logger.getLogger("scads.queryexecution.operators")
 		
 		val len = child.length
 		
@@ -165,9 +158,7 @@ abstract trait QueryExecutor {
 
 	//protected def selection[EntityType <: Entity](equalityMap: HashMap[String, Field], child: Seq[EntityType]): Seq[EntityType] = {
 	def selection[EntityType <: Entity](equalityMap: HashMap[String, Field], child: Seq[EntityType]): Seq[EntityType] = {
-		val opLogger = Logger.getLogger("scads.queryexecution.operators")
-		
-		val threadName = Thread.currentThread().getName()
+		//val opLogger = Logger.getLogger("scads.queryexecution.operators")
 		
 		val len = child.length
 		
@@ -191,9 +182,7 @@ abstract trait QueryExecutor {
 
 	//protected def sort[EntityType <: Entity](fields: List[String], ascending: Boolean, child: Seq[EntityType]): Seq[EntityType] = {
 	def sort[EntityType <: Entity](fields: List[String], ascending: Boolean, child: Seq[EntityType]): Seq[EntityType] = {
-		val opLogger = Logger.getLogger("scads.queryexecution.operators")
-		
-		val threadName = Thread.currentThread().getName()
+		//val opLogger = Logger.getLogger("scads.queryexecution.operators")
 		
 		val len = child.length
 		
@@ -220,9 +209,7 @@ abstract trait QueryExecutor {
 
 	//protected def topK[EntityType <: Entity](k: Field, child: Seq[EntityType]): Seq[EntityType] = {
 	def topK[EntityType <: Entity](k: Field, child: Seq[EntityType]): Seq[EntityType] = {
-		val opLogger = Logger.getLogger("scads.queryexecution.operators")
-		
-		val threadName = Thread.currentThread().getName()
+		//val opLogger = Logger.getLogger("scads.queryexecution.operators")
 		
 		val len = child.length
 		

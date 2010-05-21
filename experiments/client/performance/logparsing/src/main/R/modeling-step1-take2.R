@@ -1,4 +1,8 @@
 # towards modeling thoughtsByHashTag
+queryPrims = as.data.frame(read.delim(file="~/thoughtsByHashTag/primitive/bins/part-00000", header=FALSE, row.names=1))
+
+
+
 op=2
 op2 = as.data.frame(read.csv(file=paste("~/op", op,"-5-threads/op", op, "ops.csv", sep="")))
 op2prims = as.data.frame(read.delim(file=paste("~/op", op, "-5-threads/primitive/bins/part-00000", sep=""), header=FALSE, row.names=1))
@@ -148,15 +152,15 @@ load(file="~/Desktop/ops.RData")
 ls()
 
 # Nice plotting
-op=6
-actual = actualOp6
-benchmark = op6
+op=2
+actual = actualOp2
+benchmark = op2
 
 actual = actual[which(actual$latency_ms < 2*quantile(actual$latency_ms, 0.99)),]  # extreme outliers are more common in the ops-from-queries case
-#benchmark = benchmark[which(benchmark$latency_ms < 2*quantile(benchmark$latency_ms, 0.99)),]
+benchmark = benchmark[which(benchmark$latency_ms < 2*quantile(benchmark$latency_ms, 0.99)),]
 
 baseNumBreaks = 100
-#pdf(paste("~/Desktop/op", op, "-thoughtsByHashTag.pdf", sep=""))
+pdf(paste("~/Desktop/op", op, "-thoughtsByHashTag.pdf", sep=""))
 par(mfrow=c(2,1), mar=c(5,5,4,2)+0.1)
 xmax = 1.1*(max(quantile(actual$latency_ms, 0.99), quantile(benchmark$latency_ms, 0.99)))
 distr = actual$latency_ms
@@ -206,4 +210,4 @@ legend("topright",
 	col=c("red", "orange", "green", "blue", "purple", "red"),
 	lwd=2
 )
-#dev.off()
+dev.off()
