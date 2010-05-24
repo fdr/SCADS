@@ -34,6 +34,8 @@ class Environment {
 
 abstract trait QueryExecutor {
 	val qLogger = Logger.getLogger("scads.queryexecution")
+	val opLogger = Logger.getLogger("scads.queryexecution.operators")
+	
 	/* Type Definitions */
 	type TupleStream = Seq[(SpecificRecordBase, SpecificRecordBase)]
 	type EntityStream = Seq[Entity[_,_]]
@@ -42,9 +44,13 @@ abstract trait QueryExecutor {
   implicit def toBoundString(s: String) = BoundStringValue(s)
 
 	/* Tuple Providers */
-	protected def singleGet(namespace: String, key: List[BoundValue])(implicit env: Environment): TupleStream = {
+  protected def singleGet(namespace: String, key: List[BoundValue])(implicit env: Environment): TupleStream = {
+	val start = System.nanoTime()
+
+	// Start op body
     qLogger.debug("test")
     Log2.debug(qLogger, "singleGet", namespace, key)
+
     val ns = env.namespaces(namespace)
     val keyRec = ns.keyClass.newInstance()
     key.zipWithIndex.foreach {
@@ -57,11 +63,20 @@ abstract trait QueryExecutor {
     }
 
     Log2.debug(qLogger, "singleGet Result:", result)
+	// End op body
+
+	val end = System.nanoTime()
+	val denom = 1000000.0	// want to report start/end times and latency in ms
+	opLogger.info("singleGet(" + key + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+
     return result
   }
 
   //TODO: Use limit/ascending parameters
 	protected def prefixGet(namespace: String, prefix: List[BoundValue], limit: BoundValue, ascending: Boolean)(implicit env: Environment): TupleStream = {
+	val start = System.nanoTime()
+	
+	// Start op body
     Log2.debug(qLogger, "prefixGet", namespace, prefix, limit, boolean2Boolean(ascending))
     val ns = env.namespaces(namespace)
     val key = ns.keyClass.newInstance()
@@ -70,15 +85,30 @@ abstract trait QueryExecutor {
     }
     val result = ns.getPrefix(key, prefix.length)
     Log2.debug(qLogger, "singleGet result:", result)
+	// End op body
+
+	val end = System.nanoTime()
+	val denom = 1000000.0	// want to report start/end times and latency in ms
+	opLogger.info("prefixGet(" + prefix + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+
     return result
   }
 
   //TODO: Deal with values that return None
 	protected def sequentialDereferenceIndex(targetNamespace: String, child: TupleStream)(implicit env: Environment): TupleStream = {
+	val start = System.nanoTime()
+	
+	// Start op body
     Log2.debug(qLogger, "sequentialDereferenceIndex", targetNamespace, child)
     val ns = env.namespaces(targetNamespace)
     val result = child.map(c => (c._2, ns.get(c._2).get))
     Log2.debug(qLogger, "sequentialDereferenceIndex result:", result)
+	// End op body
+
+	val end = System.nanoTime()
+	val denom = 1000000.0	// want to report start/end times and latency in ms
+	opLogger.info("sequentialDereferenceIndex(" + targetNamespace + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+
     return result
   }
 
@@ -103,6 +133,9 @@ abstract trait QueryExecutor {
   //TODO: use limit / ascending parameters
   //TODO: parallelize
 	protected def prefixJoin(namespace: String, conditions: List[JoinCondition], limit: BoundValue, ascending: Boolean, child: EntityStream)(implicit env: Environment): TupleStream = {
+	val start = System.nanoTime()
+
+	// Start op body
     Log2.debug(qLogger, "prefixJoin", namespace, conditions, limit, boolean2Boolean(ascending), child)
     val ns = env.namespaces(namespace)
     val result = child.flatMap(c => {
@@ -111,10 +144,19 @@ abstract trait QueryExecutor {
       ns.getPrefix(key, conditions.length)
     })
     Log2.debug(qLogger, "prefixJoin result: ", result)
+	// End op body
+
+	val end = System.nanoTime()
+	val denom = 1000000.0	// want to report start/end times and latency in ms
+	opLogger.info("prefixJoin(" + namespace + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+
     return result
   }
 
 	protected def pointerJoin(namespace: String, conditions: List[JoinCondition], child: EntityStream)(implicit env: Environment): TupleStream = {
+	val start = System.nanoTime()
+
+	// Start op body
     Log2.debug(qLogger, "pointerJoin", namespace, conditions, child)
     val ns = env.namespaces(namespace)
     val result = child.map(c => {
@@ -124,11 +166,20 @@ abstract trait QueryExecutor {
       (key, ns.get(key).get)
     })
     Log2.debug(qLogger, "pointerJoin result:", result)
+	// End op body
+
+	val end = System.nanoTime()
+	val denom = 1000000.0	// want to report start/end times and latency in ms
+	opLogger.info("pointerJoin(" + namespace + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+
     return result
   }
 
 	/* Entity Providers */
 	protected def materialize(entityClass: Class[Entity[_,_]], child: TupleStream)(implicit env: Environment): EntityStream = {
+		val start = System.nanoTime()
+
+		// Start op body
     Log2.debug(qLogger, "materialize", entityClass, child)
     val result = child.map(c => {
       val e = entityClass.newInstance().asInstanceOf[Entity[SpecificRecordBase,SpecificRecordBase]]
@@ -137,19 +188,37 @@ abstract trait QueryExecutor {
       e
     })
     Log2.debug(qLogger, "materialize result:", result)
+	// End op body
+
+	val end = System.nanoTime()
+	val denom = 1000000.0	// want to report start/end times and latency in ms
+	opLogger.info("materialize(" + entityClass + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+
     return result
   }
 
 	protected def selection(equalityMap: HashMap[String, BoundValue], child: EntityStream): EntityStream = {
+		val start = System.nanoTime()
+
+		// Start op body
     Log2.debug(qLogger, "selection", equalityMap, child)
     val result = child.filter(c => {
       equalityMap.map {case (attrName: String, bv: BoundFixedValue[_]) => c.get(attrName) equals bv.value}.reduceLeft(_&_)
     })
     Log2.debug(qLogger, "selection result: ", result)
-    return result
+ 	// End op body
+
+	val end = System.nanoTime()
+	val denom = 1000000.0	// want to report start/end times and latency in ms
+	opLogger.info("selection, start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+
+   return result
   }
 
 	protected def sort(fields: List[String], ascending: Boolean, child: EntityStream): EntityStream = {
+		val start = System.nanoTime()
+
+		// Start op body
     Log2.debug(qLogger, "sort", fields, boolean2Boolean(ascending), child)
     val comparator = (a: Entity[_,_], b: Entity[_,_]) => {
       fields.map(f => (a.get(f), b.get(f)) match {
@@ -162,8 +231,26 @@ abstract trait QueryExecutor {
     scala.util.Sorting.stableSort(ret, comparator)
     val result = if(ascending) ret else ret.reverse
     Log2.debug(qLogger, "sort result:", result)
+ 	// End op body
+
+	val end = System.nanoTime()
+	val denom = 1000000.0	// want to report start/end times and latency in ms
+	opLogger.info("sort(" + fields.length + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+
     return result
   }
 
-	protected def topK(k: BoundIntegerValue, child: EntityStream): EntityStream = child.take(k.value)
+	protected def topK(k: BoundIntegerValue, child: EntityStream): EntityStream = {
+		val start = System.nanoTime()
+
+		// Start op body
+		val res = child.take(k.value)
+	 	// End op body
+
+		val end = System.nanoTime()
+		val denom = 1000000.0	// want to report start/end times and latency in ms
+		opLogger.info("topK(" + k + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+		
+		res
+	}
 }
