@@ -1,4 +1,7 @@
-import edu.berkeley.cs.scads.model._
+//import edu.berkeley.cs.scads.model._
+import edu.berkeley.cs.scads.piql._
+import edu.berkeley.cs.scads.piql.parser._
+
 import org.apache.log4j._
 import org.apache.log4j.Level._
 import edu.berkeley.cs.scads.thrift._

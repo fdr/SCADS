@@ -1,7 +1,12 @@
-import edu.berkeley.cs.scads.model._
+package edu.berkeley.cs.scads.benchmarking
+
+//import edu.berkeley.cs.scads.model._
+import edu.berkeley.cs.scads.piql._
+import edu.berkeley.cs.scads.piql.parser._
+
 import org.apache.log4j._
 import org.apache.log4j.Level._
-import edu.berkeley.cs.scads.thrift._
+//import edu.berkeley.cs.scads.thrift._
 
 import org.apache.commons.cli.Options
 import org.apache.commons.cli.GnuParser
