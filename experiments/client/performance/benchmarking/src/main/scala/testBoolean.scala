@@ -1,3 +1,5 @@
+package edu.berkeley.cs.scads.benchmarking
+
 import org.apache.commons.cli._
 
 object TestBoolean {
