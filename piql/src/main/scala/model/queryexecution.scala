@@ -32,9 +32,12 @@ class Environment {
   var namespaces: Map[String, Namespace[SpecificRecordBase, SpecificRecordBase]] = null
 }
 
+object QueryExecutor {
+	val opLogger = Logger.getLogger("scads.queryexecution.operators")
+}
+
 abstract trait QueryExecutor {
 	val qLogger = Logger.getLogger("scads.queryexecution")
-	val opLogger = Logger.getLogger("scads.queryexecution.operators")
 	
 	/* Type Definitions */
 	type TupleStream = Seq[(SpecificRecordBase, SpecificRecordBase)]
@@ -67,7 +70,8 @@ abstract trait QueryExecutor {
 
 	val end = System.nanoTime()
 	val denom = 1000000.0	// want to report start/end times and latency in ms
-	opLogger.info("singleGet(" + key + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+	QueryExecutor.opLogger.info("singleGet(" + key + "), start=" + (start/denom) + ", end=" + (end/denom) + ", latency=" + ((end-start)/denom))
+	//QueryExecutor.opLogger.info("singleGet(" + key + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
 
     return result
   }
@@ -84,12 +88,12 @@ abstract trait QueryExecutor {
       case (value: BoundFixedValue[_], idx: Int) => key.put(idx, value.value)
     }
     val result = ns.getPrefix(key, prefix.length)
-    Log2.debug(qLogger, "singleGet result:", result)
+    Log2.debug(qLogger, "prefixGet result:", result)
 	// End op body
 
 	val end = System.nanoTime()
 	val denom = 1000000.0	// want to report start/end times and latency in ms
-	opLogger.info("prefixGet(" + prefix + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+	QueryExecutor.opLogger.info("prefixGet(" + prefix + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
 
     return result
   }
@@ -107,7 +111,7 @@ abstract trait QueryExecutor {
 
 	val end = System.nanoTime()
 	val denom = 1000000.0	// want to report start/end times and latency in ms
-	opLogger.info("sequentialDereferenceIndex(" + targetNamespace + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+	QueryExecutor.opLogger.info("sequentialDereferenceIndex(" + targetNamespace + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
 
     return result
   }
@@ -148,7 +152,7 @@ abstract trait QueryExecutor {
 
 	val end = System.nanoTime()
 	val denom = 1000000.0	// want to report start/end times and latency in ms
-	opLogger.info("prefixJoin(" + namespace + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+	QueryExecutor.opLogger.info("prefixJoin(" + namespace + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
 
     return result
   }
@@ -163,6 +167,9 @@ abstract trait QueryExecutor {
       val key = mkKey(ns.keyClass.asInstanceOf[Class[EntityPart]], conditions, c)
 
       Log2.debug(qLogger, "pointerJoin doing get on key: ", key)
+
+      println("pointerJoin doing get on key: " + key)	// debugging
+		
       (key, ns.get(key).get)
     })
     Log2.debug(qLogger, "pointerJoin result:", result)
@@ -170,7 +177,7 @@ abstract trait QueryExecutor {
 
 	val end = System.nanoTime()
 	val denom = 1000000.0	// want to report start/end times and latency in ms
-	opLogger.info("pointerJoin(" + namespace + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+	QueryExecutor.opLogger.info("pointerJoin(" + namespace + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
 
     return result
   }
@@ -192,7 +199,7 @@ abstract trait QueryExecutor {
 
 	val end = System.nanoTime()
 	val denom = 1000000.0	// want to report start/end times and latency in ms
-	opLogger.info("materialize(" + entityClass + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+	QueryExecutor.opLogger.info("materialize(" + entityClass + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
 
     return result
   }
@@ -210,7 +217,7 @@ abstract trait QueryExecutor {
 
 	val end = System.nanoTime()
 	val denom = 1000000.0	// want to report start/end times and latency in ms
-	opLogger.info("selection, start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+	QueryExecutor.opLogger.info("selection, start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
 
    return result
   }
@@ -235,7 +242,7 @@ abstract trait QueryExecutor {
 
 	val end = System.nanoTime()
 	val denom = 1000000.0	// want to report start/end times and latency in ms
-	opLogger.info("sort(" + fields.length + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+	QueryExecutor.opLogger.info("sort(" + fields.length + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
 
     return result
   }
@@ -249,7 +256,7 @@ abstract trait QueryExecutor {
 
 		val end = System.nanoTime()
 		val denom = 1000000.0	// want to report start/end times and latency in ms
-		opLogger.info("topK(" + k + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
+		QueryExecutor.opLogger.info("topK(" + k + "), start=" + start/denom + ", end=" + end/denom + ", latency=" + (end-start)/denom)
 		
 		res
 	}
