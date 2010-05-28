@@ -1,3 +1,5 @@
+package edu.berkeley.cs.scads.benchmarking
+
 import deploylib._
 import deploylib.ec2._
 import deploylib.ParallelConversions._
@@ -33,7 +35,7 @@ import java.io._
 object ClusterDeployment extends ConfigurationActions {
 	def main(args:Array[String]) {
 		// These params don't change from run to run
-		val availabilityZone = "us-east-1c"
+		val availabilityZone = "us-east-1b"
 		val zookeeperPort = 2181
 		val storageEnginePort = 9000
 		val remoteDir = "/root"
@@ -164,9 +166,12 @@ object ClusterDeployment extends ConfigurationActions {
 		println(System.getenv("AWS_KEY_NAME"))
 		println(System.getenv())
 		println(availabilityZone)
-		val nodes = EC2Instance.runInstances("ami-e7a2448e", 3, 3, System.getenv("AWS_KEY_NAME"), "m1.small", availabilityZone)
+		//val nodes = EC2Instance.runInstances("ami-e7a2448e", 3, 3, System.getenv("AWS_KEY_NAME"), "m1.small", availabilityZone)
+		val nodes = EC2Instance.runInstances("ami-e7a2448e", 1, 1, System.getenv("AWS_KEY_NAME"), "m1.small", availabilityZone)
 		println(nodes)
 
+
+		/*
 		// Setup Zookeeper
 		val zooNode = nodes(0)
 		val zooService = deployZooKeeperServer(zooNode, zookeeperPort)
@@ -177,15 +182,16 @@ object ClusterDeployment extends ConfigurationActions {
 
 		// Setup StorageNode
 		val storageNode = nodes(1)
-		val storageService = deployStorageEngine(storageNode, zooNode, /*bulkLoad*/ false, storageEnginePort, zookeeperPort)
+		val storageService = deployStorageEngine(storageNode, zooNode, false, storageEnginePort, zookeeperPort)
 		storageService.watchFailures
 		storageService.start
 		storageService.blockTillUpFor(5)
 		storageNode.blockTillPortOpen(storageEnginePort)
-		
+		*/
 		
 		// Setup OpBenchmarker
-		val clientNode = nodes(2)
+		//val clientNode = nodes(2)
+		val clientNode = nodes(0)
 		clientNode.executeCommand("mkdir /root/operator")
 		clientNode.executeCommand("mkdir /root/primitive")
 		/*		
@@ -217,14 +223,20 @@ object ClusterDeployment extends ConfigurationActions {
 			+ " -minItemsB=" + minItemsB + " -maxItemsB=" + maxItemsB + " -itemsIncB=" + itemsIncB
 			+ " -minCharsA=" + minCharsA + " -maxCharsA=" + maxCharsA + " -charsIncA=" + charsIncA
 			+ " -minCharsB=" + minCharsB + " -maxCharsB=" + maxCharsB + " -charsIncB=" + charsIncB
+			/*
 			+ " -zookeeperServerAndPort=" + zooNode.privateDnsName + ":" + zookeeperPort
 			+ " -storageNodeServer=" + storageNode.privateDnsName)
+			*/
+			+ " -zookeeperServerAndPort=a:b"
+			+ " -storageNodeServer=a")
+			println(clientArgs)
+			
 																						
 		val clientService = createJavaServiceWithCustomLog4jConfigFile(clientNode, 
 			//new File("/Users/ksauer/Desktop/scads/experiments/client/performance/benchmarking/target/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"),
-			new File(remoteDir + "/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"),
+			new File(remoteDir + "/benchmarker-2.0-SNAPSHOT-jar-with-dependencies.jar"),
 			//new File("/work/ksauer/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"),
-			"BenchmarkOps",
+			"edu.berkeley.cs.scads.benchmarking.BenchmarkOps",
 			//"BenchmarkOpsNoPrimLogging",
 			2048,
 			/*
@@ -259,8 +271,10 @@ object ClusterDeployment extends ConfigurationActions {
 		clientNode.executeCommand("gzip " + filenamePrefix + ".tar")
 		clientNode.executeCommand("s3cmd put " + filenamePrefix + ".tar.gz s3://" + bucket + "/" + filenamePrefix + ".tar.gz")
 		
+		/*
 		println("zookeeper: " + zooNode.privateDnsName)
 		println("storage engine: " + storageNode.privateDnsName)
+		*/
 		println("client: " + clientNode.privateDnsName)
 	}
 	
