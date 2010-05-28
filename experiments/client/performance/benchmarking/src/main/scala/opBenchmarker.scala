@@ -3,6 +3,8 @@ package edu.berkeley.cs.scads.benchmarking
 //import edu.berkeley.cs.scads.model._
 import edu.berkeley.cs.scads.piql._
 import edu.berkeley.cs.scads.piql.parser._
+import edu.berkeley.cs.scads.storage._
+import piql._
 
 import org.apache.log4j._
 import org.apache.log4j.Level._
@@ -147,6 +149,7 @@ object BenchmarkOps {
 		opLogger.info("Setting up full cluster...")
 		primitiveLogger.info("Setting up full cluster...")
 
+		/*
 		implicit val env = new Environment
 		env.session = new TrivialSession
 		env.executor = new TrivialExecutor
@@ -154,6 +157,8 @@ object BenchmarkOps {
 		val n = new StorageNode(storageNodeServer, 9000)
 		Queries.configureStorageEngine(n)  // set responsibility policy
 		env.placement = new ZooKeptCluster(zookeeperServerAndPort)
+		*/		
+		implicit val env = Configurator.configure(TestScalaEngine.cluster)
 		
 		
 		// Benchmark requested op
@@ -186,6 +191,7 @@ object BenchmarkOps {
 				primitiveLogger.info("New data size pair:  size(A) = " + aSize + ", size(B) = " + bSize)
 				
 				// Delete previous data
+				/*
 				val allKeys = RangedPolicy.convert((null, null)).get(0)
 				n.useConnection((c) => {
 					c.remove_set("ent_A", allKeys)
@@ -212,6 +218,10 @@ object BenchmarkOps {
 					opLogger.info("ent_B is empty.")
 					primitiveLogger.info("ent_B is empty.")
 				}
+				*/
+				
+				// DO FOR NEW VERSION
+				
 
 				
 				// Generate data for requested op
