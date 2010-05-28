@@ -1,6 +1,10 @@
+package edu.berkeley.cs.scads.benchmarking
+
 //import edu.berkeley.cs.scads.model._
 import edu.berkeley.cs.scads.piql._
 import edu.berkeley.cs.scads.piql.parser._
+
+import piql._
 
 import org.apache.log4j._
 import org.apache.log4j.Level._
@@ -33,26 +37,28 @@ object PerOpDataGen {
 	}
 	
 	protected def generateManyBsPerA(aSize:Int, bSize:Int, maxItemsA:Int, maxItemsB:Int)(implicit env: Environment) = {
-		println("Generating data for op2=prefixGet...")
+		println("maxItemsA=" + maxItemsA + ", maxItemsB=" + maxItemsB)
+		
+		
 		(1 to maxItemsA).foreach((i) => {
 			val a = new A
-			a.key("key-" + i)
-			a.key2("key2-" + i)
-			a.dataA(generateDataField(aSize))
+			a.key1 = ("key1-" + i)
+			a.key2 = ("key2-" + i)
+			a.dataA = generateDataField(aSize)
 			a.save
 			
 			(1 to maxItemsB).foreach((j) => {
 				val b = new B
-				b.owner(a)
-				b.key2("key2-" + j)
-				b.dataB(generateDataField(bSize))
+				b.owner = a
+				b.key2 = ("key2-" + j)
+				b.dataB = generateDataField(bSize)
 				b.save
 
-				if ((j % 100) == 0)
+				//if ((j % 100) == 0)
 					println("Added " + j + " items of type B, owned by A:key" + i + "...")
 			})
 			
-			if ((i % 100) == 0)
+			//if ((i % 100) == 0)
 				println("Added " + i + " items of type A...")
 		})
 	}
@@ -61,9 +67,9 @@ object PerOpDataGen {
 		println("Generating data for op1=singleGet...")
 		(1 to maxItemsA).foreach((i) => {
 			val a = new A
-			a.key("key-" + i)
-			a.key2("key2-" + i)
-			a.dataA(generateDataField(aSize))
+			a.key1 = ("key-" + i)
+			a.key2 = ("key2-" + i)
+			a.dataA = generateDataField(aSize)
 			a.save
 			
 			if ((i % 100) == 0)
@@ -72,6 +78,8 @@ object PerOpDataGen {
 	}
 	
 	protected def datagenOp2(aSize:Int, bSize:Int, maxItemsA:Int, maxItemsB:Int)(implicit env: Environment) = {
+		println("Generating data for op2=prefixGet...")
+		
 		generateManyBsPerA(aSize, bSize, maxItemsA, maxItemsB)
 	}
 	
@@ -82,9 +90,9 @@ object PerOpDataGen {
 			
 			(1 to maxItems).foreach((j) => {
 				val a = new A
-				a.key("key-" + ((i-1)*maxItems + j))
-				a.key2(secondaryKey)
-				a.dataA(generateDataField(aSize))
+				a.key1 = ("key-" + ((i-1)*maxItems + j))
+				a.key2 = secondaryKey
+				a.dataA = generateDataField(aSize)
 				a.save
 				
 				if ((j % 100) == 0)
@@ -94,10 +102,14 @@ object PerOpDataGen {
 	}
 	
 	protected def datagenOp4(aSize:Int, bSize:Int, maxItemsA:Int, maxItemsB:Int)(implicit env: Environment) = {
+		println("Generating data for op4=prefixJoin...")
+		
 		generateManyBsPerA(aSize, bSize, maxItemsA, maxItemsB)
 	}
 
 	protected def datagenOp5(aSize:Int, bSize:Int, maxItemsA:Int, maxItemsB:Int)(implicit env: Environment) = {
+		println("Generating data for op5=pointerJoin...")
+		
 		generateManyBsPerA(aSize, bSize, maxItemsA, maxItemsB)
 	}
 	
