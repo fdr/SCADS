@@ -17,6 +17,11 @@
 		<module>comm</module>
         <module>avro-compiler</module>
         <module>avro-maven-plugin</module>
+		<module>experiments/client/generalclient</module>
+		<module>experiments/client/performance/benchmarking</module>
+		<module>experiments/client/performance/experiment-drivers</module>
+		<module>experiments/client/performance/logparsing</module>
+		<module>experiments/client/performance/querygen</module>
 	</modules>
 	<dependencies>
 		<dependency>
