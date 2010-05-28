@@ -1,3 +1,5 @@
+package edu.berkeley.cs.scads.benchmarking
+
 import org.apache.log4j._
 
 object TestLog4j {
