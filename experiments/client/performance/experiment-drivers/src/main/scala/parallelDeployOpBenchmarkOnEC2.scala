@@ -26,8 +26,8 @@ val runDuration = 60
 val warmupDuration = 300
 val min = 10
 val threadsRange = 5 to 50 by 5
-//val ops = 1 to 9 by 1
-val ops = List(2, 5, 6, 8)
+val ops = 1 to 9 by 1
+//val ops = List(2, 5, 6, 8)
 val bucket = "kristal/run-" + System.currentTimeMillis()
 val benchmarkJarDir = "/Users/radlab/Desktop/ksauer/Desktop/scads/experiments/client/performance/benchmarking/target"
 
@@ -50,8 +50,8 @@ experimentType match {
 		varyOpNum = false
 		varyThreadNum = false
 		numThreads = 5
-		whichOp = 5
-		numExperiments = 1
+		whichOp = 1
+		numExperiments = 3
 }
 
 val experiments = 1 to numExperiments by 1
@@ -77,8 +77,9 @@ experiments.pforeach((i) => {
 	//nodes(i-1).executeCommand("env")
 
 	// Get jars from S3
-	nodes(i-1).executeCommand("s3cmd get s3://kristal/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar")
-	nodes(i-1).executeCommand("s3cmd get s3://kristal/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar")
+	//nodes(i-1).executeCommand("s3cmd get s3://kristal/scalaengine-1.1-SNAPSHOT-jar-with-dependencies.jar")
+	//nodes(i-1).executeCommand("s3cmd get s3://kristal/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar")
+	nodes(i-1).executeCommand("s3cmd get s3://kristal/benchmarker-2.0-SNAPSHOT-jar-with-dependencies.jar")
 		
 	if (varyThreadNum && !varyOpNum) {
 		clientArgs(i-1) = ("-bucket=" + bucket + " -filenamePrefix=op" + whichOp + "-threads" + threadsRange(i-1) + "-take" + (i-1)
@@ -113,7 +114,9 @@ experiments.pforeach((i) => {
 	//nodes(i-1).createFile(new File("/root/run.txt"), clientArgs(i-1))
 	// create java service
 	//services(i-1) = createJavaService(nodes(i-1), new File("/root/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"), "ClusterDeployment", 1024, clientArgs(i-1))
-	services(i-1) = createJavaService(nodes(i-1), new File(benchmarkJarDir + "/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"), "ClusterDeployment", 1024, clientArgs(i-1))
+	//services(i-1) = createJavaService(nodes(i-1), new File(benchmarkJarDir + "/benchmarker-1.0-SNAPSHOT-jar-with-dependencies.jar"), "ClusterDeployment", 1024, clientArgs(i-1))
+	services(i-1) = createJavaService(nodes(i-1), new File(benchmarkJarDir + "/benchmarker-2.0-SNAPSHOT-jar-with-dependencies.jar"), "edu.berkeley.cs.scads.benchmarking.ClusterDeployment", 1024, clientArgs(i-1))
+	
 	services(i-1).watchFailures
 	services(i-1).once
 	services(i-1).blockTillDown
