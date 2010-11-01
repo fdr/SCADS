@@ -28,7 +28,7 @@ private[storage] object QuorumProtocol {
 abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedRecord]
 (namespace: String,
  timeout: Int,
- root: ZooKeeperProxy#ZooKeeperNode)(implicit cluster: ScadsCluster)
+ root: ZooKeeperProxy#ZooKeeperNode)(implicit cluster: ScadsCluster, keyType: Manifest[KeyType], valueType: Manifest[ValueType])
         extends Namespace[KeyType, ValueType](namespace, timeout, root)(cluster) with AvroComparator {
   
   import QuorumProtocol._
@@ -145,6 +145,95 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   def get[K <: KeyType](key: K): Option[ValueType] = {
     val (ftchs, serKey, quorum) = makeGetRequests(key)
     finishGetHandler(new GetHandler(serKey, ftchs), quorum).getOrElse(throw new RuntimeException("Could not complete get request - not enough servers responded"))
+  }
+
+  // Mostly copied from finishRangeRequest().
+  private def finishMapRequest[ResultType](partitions: List[FullRange], ftchs: Seq[Seq[MessageFuture]], remoteClosureBytes: Array[Byte], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[ResultType] = {
+
+    def newRangeHandle(ftchs: Seq[MessageFuture]) =
+      timeout.map(t => new RangeHandle(ftchs, t)).getOrElse(new RangeHandle(ftchs))
+
+    var handlers = ftchs.map(x => newRangeHandle(x)).toBuffer
+
+    var result = new ArrayBuffer[ResultType]
+    var openRec: Long = if (limit.isDefined) limit.get else java.lang.Long.MAX_VALUE
+    var servers = partitions
+    var cur = 0
+    for (handler <- handlers) {
+      if (openRec > 0) {
+        val records = handler.vote(readQuorum(handler.futures.size))
+        if (handler.failed)
+          throw new RuntimeException("Not enough servers responded. We need to throw better exceptions for that case")
+        //if we do not get enough records, we request more, before we process the current batch
+        if (records.length <= openRec && !servers.isEmpty) {
+          val range = servers.head
+          val newLimit = if(limit.isDefined) Some(openRec.toInt) else None
+          val rangeRequest = new MapRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), remoteClosureBytes, newLimit, offset, ascending)
+          handlers.append(newRangeHandle(range.values.map(_ !! rangeRequest)))
+          servers = servers.tail
+        }
+        result.appendAll(records.flatMap(a =>
+          // This part is different from Range.
+          // HACK: just using the key field of the Record to receive the data
+          //       from the partition handler.
+          if (openRec > 0) {
+            openRec -= 1
+            List(SerializeUtil.fromByteArray[ResultType](a.key))
+          } else {
+            Nil
+          }
+          )
+        )
+      }
+    }
+    handlers.foreach(ReadRepairer ! _)
+    result
+  }
+
+  private def startMapRequest(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], remoteClosureBytes: Array[Byte], limit: Option[Int], offset: Option[Int], ascending: Boolean): (List[FullRange], Seq[Seq[MessageFuture]]) = {
+    val startKey = startKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal))
+    val endKey = endKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal))
+    val partitions = if (ascending) serversForRange(startKey, endKey) else serversForRange(startKey, endKey).reverse
+
+    limit match {
+      case Some(_) =>
+        // if limit is defined, then only send a req to the first server.
+        // return a pointer to the tail of the first partition
+        val range = partitions.head
+        val rangeRequest = new MapRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), remoteClosureBytes, limit, offset, ascending)
+        (partitions.tail, Seq(range.values.map(_ !! rangeRequest)))
+      case None =>
+        // if no limit is defined, then we'll have to send a request to every
+        // server. the pointer should be nil since no servers left
+        (Nil, partitions.map(range => {
+          val rangeRequest = new MapRequest(range.startKey.map(serializeKey(_)), range.endKey.map(serializeKey(_)), remoteClosureBytes, limit, offset, ascending)
+          range.values.map(_ !! rangeRequest)
+        }).toSeq)
+    }
+  }
+
+  // Map request without an aggregation function.
+  // TODO: Is this needed and/or can we overload the name?
+  def mapRange[ResultType](startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], mapFn: (KeyType, ValueType) => ResultType, limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): Seq[ResultType] = {
+
+    mapAggRange[ResultType, ResultType](startKeyPrefix, endKeyPrefix, mapFn, None,
+                                        limit, offset, ascending)
+  }
+
+  // Map request with an aggregation function.
+  // TODO: Eventually, we may want an async version.
+  def mapAggRange[ResultType, AggResultType](startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], mapFn: (KeyType, ValueType) => ResultType, aggFn: Option[(ResultType, Option[AggResultType]) => AggResultType], limit: Option[Int] = None, offset: Option[Int] = None, ascending: Boolean = true): Seq[AggResultType] = {
+
+    val mapFnBytes = Closure(mapFn)
+    val keyClass = keyType.erasure.asInstanceOf[Class[KeyType]]
+    val valueClass = valueType.erasure.asInstanceOf[Class[ValueType]]
+    val remoteClosure = new RemoteClosure(keyClass, valueClass, mapFn, aggFn)
+    val remoteClosureBytes = SerializeUtil.toByteArray(remoteClosure)
+
+    val (ptr, ftchs) = startMapRequest(startKeyPrefix, endKeyPrefix,
+                                       remoteClosureBytes,
+                                       limit, offset, ascending)
+    finishMapRequest[AggResultType](ptr, ftchs, remoteClosureBytes, limit, offset, ascending, None)
   }
 
   /**
@@ -314,6 +403,8 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     def averageBufferSize =
       serverBuffers.values.foldLeft(0)(_ + _.size) / serverBuffers.size.toDouble 
 
+    def maxBufferSize = serverBuffers.values.map(a => a.size).max
+
     def writeServerBuffers() {
       outstandingFutureColls += new FutureCollection(serverBuffers.map { tup => 
         tup._1 !! BulkPutRequest(tup._2.toSeq)
@@ -336,7 +427,8 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
         buf += putRequest
       }
 
-      if (averageBufferSize >= BufSize.toDouble)
+      if (averageBufferSize >= BufSize.toDouble || maxBufferSize >= 2.0 * BufSize.toDouble)
+        // Also flush buffers when a single buffer is too large.
         // time to flush server buffers
         writeServerBuffers()
 
@@ -393,6 +485,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
       }
       val result = future() match {
         case GetRangeResponse(v) => v
+        case MapResponse(v) => v
         case GetPrefixResponse(v) => v
         case m => throw new RuntimeException("Unexpected Message (was expecting either GetRangeResponse or GetPrefixResponse): " + m)
       }

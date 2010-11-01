@@ -152,7 +152,7 @@ private[storage] trait AvroSerializing[KeyType <: IndexedRecord, ValueType <: In
 class SpecificNamespace[KeyType <: ScalaSpecificRecord, ValueType <: ScalaSpecificRecord]
     (namespace: String, timeout: Int, root: ZooKeeperProxy#ZooKeeperNode)
     (implicit cluster: ScadsCluster, keyType: Manifest[KeyType], valueType: Manifest[ValueType])
-        extends QuorumProtocol[KeyType, ValueType](namespace, timeout, root)(cluster) 
+        extends QuorumProtocol[KeyType, ValueType](namespace, timeout, root)(cluster, keyType, valueType)
         with    RoutingProtocol[KeyType, ValueType] 
         with    SimpleMetaData[KeyType, ValueType]
         with    AvroSerializing[KeyType, ValueType] {
@@ -197,8 +197,10 @@ class GenericNamespace(namespace: String,
                        root: ZooKeeperProxy#ZooKeeperNode,
                        val keySchema: Schema,
                        val valueSchema: Schema)
-                      (implicit cluster : ScadsCluster)
-    extends QuorumProtocol[GenericData.Record, GenericData.Record](namespace, timeout, root)(cluster)
+                      (implicit cluster : ScadsCluster,
+                       keyType: Manifest[GenericData.Record],
+                       valueType: Manifest[GenericData.Record])
+    extends QuorumProtocol[GenericData.Record, GenericData.Record](namespace, timeout, root)(cluster, keyType, valueType)
     with    RoutingProtocol[GenericData.Record, GenericData.Record] 
     with    SimpleMetaData[GenericData.Record, GenericData.Record]
     with    AvroSerializing[GenericData.Record, GenericData.Record] {

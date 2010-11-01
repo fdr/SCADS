@@ -44,6 +44,14 @@ case class GetPrefixResponse(var records: List[Record]) extends AvroRecord with 
 case class TestSetRequest(var key: Array[Byte], var value: Option[Array[Byte]], var expectedValue: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 case class TestSetResponse(var success: Boolean) extends AvroRecord with KeyValueStoreOperation
 
+case class MapRequest(var minKey: Option[Array[Byte]],
+                      var maxKey: Option[Array[Byte]],
+                      var fn: Array[Byte],
+                      var limit: Option[Int] = None,
+                      var offset: Option[Int] = None,
+                      var ascending: Boolean = true) extends AvroRecord with KeyValueStoreOperation
+case class MapResponse(var records: List[Record]) extends AvroRecord with KeyValueStoreOperation
+
 /* Storage Handler Operations */
 sealed trait StorageServiceOperation extends MessageBody
 case class CreatePartitionRequest(var namespace: String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None) extends AvroRecord with StorageServiceOperation
