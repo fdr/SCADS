@@ -1,11 +1,13 @@
 package edu.berkeley.cs.scads.util
 
-import scala.collection.mutable.ListBuffer
+import scala.collection.mutable._
 import scala.io.Source
 
 import edu.berkeley.cs.avro.marker.AvroRecord
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
+
+import Jama._
 
 case class TestStringRec(var f1: String) extends AvroRecord
 case class TestIntStringRec(var f1: Int, var f2: String) extends AvroRecord
@@ -38,7 +40,7 @@ object CovtypeLoader {
     // Insert in batches.
     var total_count = 0
     var batch_list = ListBuffer[(CovtypeId, CovtypeFeatures)]()
-    for(line <- Source.fromFile(filename).getLines()) {
+    for (line <- Source.fromFile(filename).getLines()) {
       batch_list += (transformLine(line))
       if (batch_list.length >= 1000) {
         ns ++= batch_list
@@ -99,64 +101,73 @@ class TestScads {
 
     CovtypeLoader.loadData(client1, "covtypetest")
 
-    // Map function.  Converts all features to a list of doubles and prepends 1
+    // Map function.  Converts all features to a list of doubles and appends 1
     // to the vector for the constant parameter.  Drops the last column because
     // that is the output column.
-    // TODO: Make this into a vector class instead of a List.
     val mapFn = (k: CovtypeId, v: CovtypeFeatures) => {
-      1.0 :: v.features.split(",").map(x => x.toDouble).toList.dropRight(1)
+      val double_array = v.features.split(",").map(x => x.toDouble)
+      // index 10 to 53 are indicators, 0 or 1.  add 1 to avoid zeros.
+      (double_array zip (0 until double_array.length)).foreach(x => {
+        if (x._2 >= 10 && x._2 < 54) {
+          double_array.update(x._2, double_array(x._2) + 1.0)
+        }
+      })
+      double_array.update(double_array.length - 1, 1.0)
+      new Matrix(double_array, double_array.length)
     }
 
     // Aggregate function.  Vector multiplies each feature vector with itself
     // to generate a matrix.  Then adds to the accumulated results.
-    // TODO: Do this with Matrix multiply, instead of hacky List manipulation.
-    val aggFn = (v: List[Double], aggOpt: Option[List[List[Double]]]) => {
-      val row_matrix = v.foldRight(List[List[Double]]()) {
-        (value, acc) => v.map(_ * value) :: acc
-      }
+    val aggFn = (m: Matrix, aggOpt: Option[Matrix]) => {
       aggOpt match {
-        case None => row_matrix
-        case Some(agg) => {
-          (row_matrix zip agg).map(x => (x._1 zip x._2).map(y => y._1 + y._2))
-        }
+        case None => m.times(m.transpose)
+        case Some(mat) => mat.plusEquals(m.times(m.transpose))
       }
     }
 
     // Map and aggregate all the data.
     var start_ms = System.currentTimeMillis()
-    val results = ns1.mapAggRange[List[Double], List[List[Double]]](None, None, mapFn, Some(aggFn))
-    val agg_results = results.reduceLeft((value, acc) => (value zip acc).map(x => (x._1 zip x._2).map(y => y._1 + y._2)))
+    val results = ns1.mapAggRange[Matrix, Matrix](None, None, mapFn, Some(aggFn))
+    val agg_results = results.reduceLeft((m1, m2) => m1.plusEquals(m2))
     var map_time_ms = System.currentTimeMillis() - start_ms;
-    println(agg_results)
+    agg_results.print(10, 5)
     println("map time (sec): " + map_time_ms / 1000.0)
 
     // Map function for the second part of the algorithm.  Converts the features
     // to a list of doubles and scales it by the output value (last column).
     val map2Fn = (k: CovtypeId, v: CovtypeFeatures) => {
-      val vector = 1.0 :: v.features.split(",").map(x => x.toDouble).toList
-      val output_value = vector.last
-      vector.dropRight(1)
-      vector.map(_ * output_value)
+      val double_array = v.features.split(",").map(x => x.toDouble)
+      // index 10 to 53 are indicators, 0 or 1.  add 1 to avoid zeros.
+      (double_array zip (0 until double_array.length)).foreach(x => {
+        if (x._2 >= 10 && x._2 < 54) {
+          double_array.update(x._2, double_array(x._2) + 1.0)
+        }
+      })
+      val scale = double_array(double_array.length - 1)
+      double_array.update(double_array.length - 1, 1.0)
+      val m = new Matrix(double_array, double_array.length)
+      m.timesEquals(scale)
     }
 
     // Aggregate function for second part.  Simply add to the accumulated results.
-    val agg2Fn = (v: List[Double], aggOpt: Option[List[Double]]) => {
+    val agg2Fn = (v: Matrix, aggOpt: Option[Matrix]) => {
       aggOpt match {
         case None => v
-        case Some(agg) => (v zip agg).map(x => x._1 + x._2)
+        case Some(agg) => agg.plusEquals(v)
       }
     }
 
     start_ms = System.currentTimeMillis()
-    val results2 = ns1.mapAggRange[List[Double], List[Double]](None, None, map2Fn, Some(agg2Fn))
-    val agg_results2 = results2.reduceLeft((value, acc) => (value zip acc).map(x => x._1 + x._2))
+    val results2 = ns1.mapAggRange[Matrix, Matrix](None, None, map2Fn, Some(agg2Fn))
+    val agg_results2 = results2.reduceLeft((m1, m2) => m1.plusEquals(m2))
     map_time_ms = System.currentTimeMillis() - start_ms;
-    println(agg_results2)
+    agg_results2.print(10, 5)
     println("map2 time (sec): " + map_time_ms / 1000.0)
 
-    // TODO: Final answer is theta = (A^-1)b.  Use a matrix library.
+    // TODO: The answer looks wrong.  Some strange large numbers...
+    val final_result = agg_results.qr.solve(agg_results2)
+    final_result.print(10, 5)
   }
-
 
   def run() {
     // Creates 3 local storage server
@@ -190,7 +201,6 @@ class TestScads {
 
     // Reads the keys
     ns1.mapRange[TestIntStringRec](IntRec(40), IntRec(60), mapFn).foreach(pair => println(pair))
-
     ns1.mapAggRange[TestIntStringRec, IntRec](IntRec(40), IntRec(60), mapFn, Some(aggFn)).foreach(pair => println(pair))
   }
 }
