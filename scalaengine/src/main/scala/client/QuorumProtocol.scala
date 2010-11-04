@@ -171,7 +171,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   }
 
   // Mostly copied from finishRangeRequest().
-  private def finishMapRequest[ResultType](partitions: List[FullRange], ftchs: Seq[Seq[MessageFuture]], remoteClosureBytes: Array[Byte], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[ResultType] = {
+  private def finishMapRequest[ResultType](partitions: Seq[FullRange], ftchs: Seq[Seq[MessageFuture]], remoteClosureBytes: Array[Byte], limit: Option[Int], offset: Option[Int], ascending: Boolean, timeout: Option[Long]): Seq[ResultType] = {
 
     def newRangeHandle(ftchs: Seq[MessageFuture]) =
       timeout.map(t => new RangeHandle(ftchs, t)).getOrElse(new RangeHandle(ftchs))
@@ -213,7 +213,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     result
   }
 
-  private def startMapRequest(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], remoteClosureBytes: Array[Byte], limit: Option[Int], offset: Option[Int], ascending: Boolean): (List[FullRange], Seq[Seq[MessageFuture]]) = {
+  private def startMapRequest(startKeyPrefix: Option[KeyType], endKeyPrefix: Option[KeyType], remoteClosureBytes: Array[Byte], limit: Option[Int], offset: Option[Int], ascending: Boolean): (Seq[FullRange], Seq[Seq[MessageFuture]]) = {
     val startKey = startKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(minVal))
     val endKey = endKeyPrefix.map(prefix => fillOutKey(prefix, newKeyInstance _)(maxVal))
     val partitions = if (ascending) serversForRange(startKey, endKey) else serversForRange(startKey, endKey).reverse
