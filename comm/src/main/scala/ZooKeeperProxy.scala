@@ -10,7 +10,7 @@ import net.lag.logging.Logger
 
 import java.util.concurrent.{ ConcurrentHashMap, TimeUnit }
 
-object RClusterZoo extends ZooKeeperProxy("r2.millennium.berkeley.edu:2181")
+object RClusterZoo extends ZooKeeperProxy((1 to 5).map(i => "zoo%d.millennium.berkeley.edu".format(i)).mkString(","))
 
 object ZooKeeperNode {
   val uriRegEx = """zk://([^/]*)/(.*)""".r
@@ -29,12 +29,17 @@ object ZooKeeperNode {
  *
  * Instances of ZooKeeperProxy and ZooKeeperNode are thread-safe 
  */
-class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watcher {
+class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watcher {
   self =>
   protected val logger = Logger()
 
   // must be volatile because it's set from watcher thread
-  @volatile protected var conn = new ZooKeeper(address, timeout, this)
+  @volatile protected var conn = newConenction()
+
+  def newConenction(): ZooKeeper = {
+    logger.info("Opening Zookeeper Connection to %s with timeout %d", address, timeout)
+    new ZooKeeper(address, timeout, this)
+  }
 
   /** 
    * maintains a canonical mapping of (full) zookeeper path to a zookeeper
@@ -220,10 +225,9 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 10000) extends Watc
     if(event.getType == EventType.None)
       event.getState match {
         case KeeperState.SyncConnected =>
-        case KeeperState.Expired => {
-          logger.info("Connection to Zookeeper Expired.  Attempting to reconnect")
-          conn = new ZooKeeper(address, 3000, this)
-          // TODO: clear cache here?
+        case KeeperState.Expired | KeeperState.Disconnected => {
+          logger.warning("Connection to Zookeeper at %s Expired.  Attempting to reconnect", address)
+          conn = newConenction()
         }
       }
     else {

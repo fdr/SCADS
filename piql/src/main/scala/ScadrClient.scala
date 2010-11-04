@@ -33,14 +33,13 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   lazy val thoughts = cluster.getNamespace[ThoughtKey, ThoughtValue]("thoughts")
   lazy val subscriptions = cluster.getNamespace[SubscriptionKey, SubscriptionValue]("subscriptions")
   lazy val tags = cluster.getNamespace[HashTagKey, HashTagValue]("tags")
-  lazy val test = println("hello")
 
   lazy val idxUsersTarget = cluster.getNamespace[UserTarget, NullRecord]("idxUsersTarget")
 
   private def exec(plan: QueryPlan, args: Any*) = {
     val iterator = executor(plan, args:_*)
     iterator.open
-    iterator.toList
+    iterator.toSeq
   }
 
   private lazy val findUserPlan = IndexLookup(users, Array(ParameterValue(0)))
@@ -88,10 +87,10 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
   def usersFollowing(username: String, count: Int): QueryResult =
     exec(usersFollowingPlan, new Utf8(username), count)
 
-  private lazy val thoughtStreamPlan =
+  private lazy val thoughtStreamPlan =   // (sub_owner, sub_target), (sub_approved), (thought_owner, thought_timestamp), (thought_text)
     IndexMergeJoin(thoughts, Array(AttributeValue(0, 1)), Array(AttributeValue(2, 1)), ParameterLimit(1, maxResultsPerPage), false,
-      Selection(Equality(FixedValue(true), AttributeValue(1, 0)),
-        IndexScan(subscriptions, Array(ParameterValue(0)), FixedLimit(maxSubscriptions), true)
+      Selection(Equality(FixedValue(true), AttributeValue(1, 0)), // (owner, target), (approved)
+        IndexScan(subscriptions, Array(ParameterValue(0)), FixedLimit(maxSubscriptions), true) // (owner, target), (approved)
       )
     )
 
@@ -121,4 +120,10 @@ class ScadrClient(val cluster: ScadsCluster, executor: QueryExecutor, maxSubscri
     )
   def thoughtsByHashTag(tag: String, count: Int): QueryResult =
     exec(thoughsByHashTagPlan, new Utf8(tag), count)
+
+
+  def saveThought(thoughtKey: ThoughtKey, thoughtValue: ThoughtValue) {
+    thoughts.put(thoughtKey, thoughtValue)
+  }
+
 }

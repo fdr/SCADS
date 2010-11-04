@@ -19,10 +19,10 @@ case class ItemValue(
         var I_RELATED3 : Int,
         var I_RELATED4 : Int,
         var I_RELATED5 : Int,
-        var I_THUMBNAIL : Array[Byte],
-        var I_IMAGE : Array[Byte],
-        var I_SRP : Float,
-        var I_COST : Float,
+        var I_THUMBNAIL : String,
+        var I_IMAGE : String,
+        var I_SRP : Double,
+        var I_COST : Double,
         var I_AVAIL : Long,
         var I_STOCK : Int,
         var ISBN : String,
@@ -31,10 +31,18 @@ case class ItemValue(
         var I_DIMENSION : String
         ) extends AvroRecord
 
+
+
 case class ItemSubjectDateTitleIndexKey(
         var I_SUBJECT : String,
         var I_PUB_DATE : Long,
         var I_TITLE : String
+        ) extends AvroRecord
+
+case class ItemTitleIndexKey(
+        var Token : String,
+        var Title : String, 
+        var I_ID : String
         ) extends AvroRecord
 
 case class CountryKey(var CO_ID : Int) extends AvroRecord
@@ -53,7 +61,7 @@ case class AuthorValue(
         var A_BIO : String
         )   extends AvroRecord
 
-case class AuthorNameIndexKey(var Name : String, var A_ID : String)  extends AvroRecord      //Additional
+case class AuthorNameItemIndexKey(var Name : String, var  I_TITLE : String, var I_ID : String)  extends AvroRecord      //Additional
 //case class AuthorLNameIndexKey(var A_LName : String, var A_ID : String)  extends AvroRecord      //Additional
 
 //Different PK
@@ -62,7 +70,7 @@ case class CustomerValue(
         var C_PASSWD : String,
         var C_FNAME : String,
         var C_LNAME : String,
-        var C_ADDR_ID : Int,
+        var C_ADDR_ID : String,
         var C_PHONE : String,
         var C_EMAIL : String,
         var C_SINCE : Long,
@@ -81,7 +89,7 @@ case class CustomerNameKey(var C_FNAME : String) extends AvroRecord
 
 case class OrdersKey(var O_ID : String) extends AvroRecord
 case class OrdersValue(
-        var O_C_ID : String,
+        var O_C_ID : String, // NOTE: O_C_ID is really O_C_UNAME
         var O_DATE_Time : Long, //Change: Stores date and time
         var O_SUB_TOTAL : Double,
         var O_TAX : Double,
@@ -93,11 +101,12 @@ case class OrdersValue(
         var O_STATUS : String
         )   extends AvroRecord
 
-case class CustomerOrderIndex(var C_UNAME : String, var O_DATE : Long) extends AvroRecord
-
+// NOTE: We order latest order by date, not by O_ID as TPC-W spec does
+case class CustomerOrderIndex(var C_UNAME : String, var O_DATE : Long, var O_ID : String) extends AvroRecord
 
 case class OrderLineKey(var OL_O_ID : String, var OL_ID : Int) extends AvroRecord
 case class OrderLineValue(
+        var OL_I_ID : String,
         var OL_QTY : Int,
         var OL_DISCOUNT : Double,
         var OL_COMMENT : String
@@ -125,5 +134,16 @@ case class AddressValue(
         var ADDR_CO_ID : Int
         ) extends AvroRecord
 
-
-
+/**
+ * A shopping cart item is keyed on a (C_UNAME, SCL_I_ID). this means a single
+ * user can only have one active shopping cart at a time
+ */
+case class ShoppingCartItemKey(
+        var C_UNAME : String,
+        var SCL_I_ID : String) extends AvroRecord
+case class ShoppingCartItemValue(
+        var SCL_QTY : Int,
+        var SCL_COST : Double,
+        var SCL_I_SRP : Double, 
+        var SCL_I_TITLE : String,
+        var SCL_I_BACKING : String) extends AvroRecord

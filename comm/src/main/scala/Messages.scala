@@ -35,6 +35,10 @@ case class BulkPutResponse() extends AvroRecord with KeyValueStoreOperation
 case class GetRangeRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]], var limit: Option[Int] = None, var offset: Option[Int] = None, var ascending: Boolean = true) extends AvroRecord with KeyValueStoreOperation
 case class GetRangeResponse(var records: List[Record]) extends AvroRecord with KeyValueStoreOperation
 
+case class BatchRequest(var ranges : Seq[MessageBody]) extends AvroRecord with KeyValueStoreOperation
+case class BatchResponse(var ranges : Seq[MessageBody]) extends AvroRecord with KeyValueStoreOperation
+
+
 case class CountRangeRequest(var minKey: Option[Array[Byte]], var maxKey: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 case class CountRangeResponse(var count: Int) extends AvroRecord with KeyValueStoreOperation
 
@@ -99,6 +103,6 @@ case class QuorumProtocolConfig(var readQuorum : Double, var writeQuorum : Doubl
 
 /* Routing Table Types.  Note: they are here due to problems with the typer (i.e. generated methods aren't visable in the same compilation cycle */
 
-case class KeyRange(var startKey: Option[Array[Byte]], var servers : List[PartitionService]) extends AvroRecord
-case class RoutingTableMessage(var partitions: List[KeyRange]) extends AvroRecord
+case class KeyRange(var startKey: Option[Array[Byte]], var servers : Seq[PartitionService]) extends AvroRecord
+case class RoutingTableMessage(var partitions: Seq[KeyRange]) extends AvroRecord
 
