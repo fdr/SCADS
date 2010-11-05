@@ -101,19 +101,37 @@ class TestScads {
 
     CovtypeLoader.loadData(client1, "covtypetest")
 
+    val transform_array = (d: Array[Double]) => {
+      val transformed_array = new Array[Double](13)
+      for (i <- (0 until transformed_array.length)) {
+        transformed_array.update(i, d(i))
+      }
+      var position = 1
+      // 10-13 is the wilderness type, indicator variable.
+      for (i <- (10 until 14)) {
+        if (d(i) != 0) {
+          position = i - 9
+        }
+      }
+      transformed_array.update(10, position)
+      // 14-53 is the soil type, indicator variable.
+      for (i <- (14 until 54)) {
+        if (d(i) != 0) {
+          position = i - 13
+        }
+      }
+      transformed_array.update(11, position)
+      transformed_array.update(12, 1)
+      transformed_array
+    }
+
     // Map function.  Converts all features to a list of doubles and appends 1
     // to the vector for the constant parameter.  Drops the last column because
     // that is the output column.
     val mapFn = (k: CovtypeId, v: CovtypeFeatures) => {
       val double_array = v.features.split(",").map(x => x.toDouble)
-      // index 10 to 53 are indicators, 0 or 1.  add 1 to avoid zeros.
-      (double_array zip (0 until double_array.length)).foreach(x => {
-        if (x._2 >= 10 && x._2 < 54) {
-          double_array.update(x._2, double_array(x._2) + 1.0)
-        }
-      })
-      double_array.update(double_array.length - 1, 1.0)
-      new Matrix(double_array, double_array.length)
+      val transformed_array = transform_array(double_array)
+      new Matrix(transformed_array, transformed_array.length)
     }
 
     // Aggregate function.  Vector multiplies each feature vector with itself
@@ -137,15 +155,9 @@ class TestScads {
     // to a list of doubles and scales it by the output value (last column).
     val map2Fn = (k: CovtypeId, v: CovtypeFeatures) => {
       val double_array = v.features.split(",").map(x => x.toDouble)
-      // index 10 to 53 are indicators, 0 or 1.  add 1 to avoid zeros.
-      (double_array zip (0 until double_array.length)).foreach(x => {
-        if (x._2 >= 10 && x._2 < 54) {
-          double_array.update(x._2, double_array(x._2) + 1.0)
-        }
-      })
+      val transformed_array = transform_array(double_array)
       val scale = double_array(double_array.length - 1)
-      double_array.update(double_array.length - 1, 1.0)
-      val m = new Matrix(double_array, double_array.length)
+      val m = new Matrix(transformed_array, transformed_array.length)
       m.timesEquals(scale)
     }
 
@@ -164,8 +176,7 @@ class TestScads {
     agg_results2.print(10, 5)
     println("map2 time (sec): " + map_time_ms / 1000.0)
 
-    // TODO: The answer looks wrong.  Some strange large numbers...
-    val final_result = agg_results.qr.solve(agg_results2)
+    val final_result = agg_results.solve(agg_results2)
     final_result.print(10, 5)
   }
 
