@@ -1,6 +1,6 @@
 package edu.berkeley.cs.scads.storage
 
-import com.sleepycat.je.{Cursor,Database, DatabaseConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
+import com.sleepycat.je.{Cursor,Database, DatabaseConfig, CursorConfig, DatabaseException, DatabaseEntry, Environment, LockMode, OperationStatus, Durability, Transaction}
 import org.apache.avro.Schema
 import net.lag.logging.Logger
 
@@ -120,7 +120,21 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
             records += Record(key.getData, value.getData)
           })
-          reply(GetRangeResponse(records.toList))
+          reply(GetRangeResponse(records))
+        }
+        case BatchRequest(ranges) => {
+          val results = new scala.collection.mutable.ListBuffer[GetRangeResponse]
+          ranges.foreach {
+            case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
+              val records = new scala.collection.mutable.ListBuffer[Record]
+              iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
+                records += Record(key.getData, value.getData)
+              })
+              results += GetRangeResponse(records)
+            }
+            case _ => throw new RuntimeException("BatchRequests only implemented for GetRange")
+          }
+          reply(BatchResponse(results))
         }
         case MapRequest(minKey, maxKey, fn, limit, offset, ascending) => {
           logger.debug("[%s] MapRequest: [%s, %s)", this,
@@ -283,7 +297,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
                                txn: Option[Transaction] = None)
       (func: (DatabaseEntry, DatabaseEntry, Cursor) => Unit): Unit = {
     val (dbeKey, dbeValue) = (new DatabaseEntry, new DatabaseEntry)
-    val cur = db.openCursor(txn.orNull,null)
+    val cur = db.openCursor(txn.orNull, CursorConfig.READ_UNCOMMITTED)
 
     var status: OperationStatus = (ascending, minKey, maxKey) match {
       case (true, None, _) => cur.getFirst(dbeKey, dbeValue, null)

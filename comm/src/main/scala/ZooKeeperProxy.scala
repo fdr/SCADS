@@ -10,7 +10,7 @@ import net.lag.logging.Logger
 
 import java.util.concurrent.{ ConcurrentHashMap, TimeUnit }
 
-object RClusterZoo extends ZooKeeperProxy((1 to 5).map(i => "zoo%d.millennium.berkeley.edu".format(i)).mkString(","))
+object RClusterZoo extends ZooKeeperProxy((1 to 3).map(i => "zoo%d.millennium.berkeley.edu".format(i)).mkString(","))
 
 object ZooKeeperNode {
   val uriRegEx = """zk://([^/]*)/(.*)""".r
@@ -169,8 +169,9 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
     def sequenceNumber: Int =
       name.drop(name.length - 10).toInt
 
-    def awaitChild(name: String, seqNumber: Option[Int] = None, timeout: Long = 24*60*60*1000, unit: TimeUnit = TimeUnit.MILLISECONDS): Unit = {
-      val fullName = fullPath(seqNumber.map(s => "%s%010d".format(name, s)).getOrElse(name))
+    def awaitChild(name: String, seqNumber: Option[Int] = None, timeout: Long = 24*60*60*1000, unit: TimeUnit = TimeUnit.MILLISECONDS): ZooKeeperProxy#ZooKeeperNode = {
+      val fullName = seqNumber.map(s => "%s%010d".format(name, s)).getOrElse(name)
+      val childPath = fullPath(fullName)
       val blocker = new BlockingFuture[Unit] 
       val watcher = new Watcher {
         def process(evt: WatchedEvent) {
@@ -181,8 +182,12 @@ class ZooKeeperProxy(val address: String, val timeout: Int = 30000) extends Watc
           }
         }
       }
-      if (conn.exists(fullName, watcher) eq null)
+      if (conn.exists(childPath, watcher) eq null) {
+        logger.info("Waiting up to %dms for %s", timeout, childPath)
         blocker.await(unit.toMillis(timeout))
+      }
+
+      apply(fullName)
     }
 
     def registerAndAwait(barrierName: String, count: Int): Int = {

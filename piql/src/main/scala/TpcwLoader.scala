@@ -1,5 +1,7 @@
 package edu.berkeley.cs.scads.piql
 
+import net.lag.logging._
+
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
 import edu.berkeley.cs.avro.marker._
@@ -16,9 +18,22 @@ class TpcwLoader( val client : TpcwClient,
                   val numEBs : Double,
                   val numItems : Int ) {
 
+  private val logger = Logger("edu.berkeley.cs.scads.piql.TpcwLoader")
+
   require(client != null)
   require(numClients >= 1)
-  require(numItems >= 1)
+  require(numEBs > 0.0)
+  require(numItems > 0)
+  
+  /**
+   * See clause 4.2.2 - items MUST be chosen from the following set
+   */
+  val ValidItemCardinalities = Set(1000, 10000, 100000, 1000000, 10000000)
+
+  if (!ValidItemCardinalities.contains(numItems))
+    logger.warning("%d is NOT a valid number of items for a TPC-W benchmark", numItems)
+
+  /** Cardinalities defined by clause 4.3 */
 
 	val numCustomers : Int = (numEBs * 2880).intValue
 	val numAddresses : Int = 2 * numCustomers
@@ -37,13 +52,17 @@ class TpcwLoader( val client : TpcwClient,
   /**
    * Given a cluster size, create the hex splits, sorted in string lexicographical order
    */
-  private def hexSplit(clusterSize: Int) : Seq[Option[String]] = {
+  private def hexSplit(clusterSize: Int) : Seq[Option[String]] = { 
     var size = 16
-    while (size < clusterSize)
+    var levels = 1
+    while (size < clusterSize) {
       size *= 16
+      levels += 1
+    }
+    size *= 16; levels += 1 // go up one more level than required to get finer granularity
     val numPerNode = size.toDouble / clusterSize.toDouble
     assert(numPerNode >= 1.0)
-    None +: (1 until clusterSize).map(i => ("%x".format((i.toDouble * numPerNode).toInt))).sorted.map(Some(_))
+    None +: (1 until clusterSize).map(i => (("%0" + levels + "x").format((i.toDouble * numPerNode).toInt))).sorted.map(Some(_))
   }
 
   /**
@@ -68,11 +87,43 @@ class TpcwLoader( val client : TpcwClient,
   }
 
   /**
+   * Given a cluster size, create splits over printable chars, defined as
+   * ASCII [33-126]
+   */
+  private def printableCharSplit(clusterSize: Int) = {
+    val (low, high) = (33, 126)
+    val numChars = high - low + 1 
+    var size = numChars
+    var levels = 1
+    while (size < clusterSize) {
+      size *= numChars
+      levels += 1
+    }
+    size *= numChars; levels += 1 // go up one more level than required to get finer granularity
+
+    def toKeyString(i: Int): String = 
+      if (i < numChars) (i + low).toChar.toString
+      else toKeyString(i / numChars) + ((i % numChars) + low).toChar.toString
+
+    def pad(str: String, ch: Char, level: Int): String = {
+      var s = str
+      while (s.length < level) {
+        s = ch.toString + s
+      }
+      s
+    }
+
+    val numPerNode = size.toDouble / clusterSize.toDouble
+    assert(numPerNode >= 1.0)
+    None +: (1 until clusterSize).map(i => pad(toKeyString((i.toDouble * numPerNode).toInt), low.toChar, levels)).sorted.map(Some(_))
+  }
+
+  /**
    * Splits a given range [0, rangeSplit) between clusterSize. if
    * clusterSize exceeds the given range, then clusterSize - givenRange
    * elements are dropped
    */
-  def rangeSplit(end: Int, clusterSize: Int): Seq[Option[Int]] = {
+  private def rangeSplit(end: Int, clusterSize: Int): Seq[Option[Int]] = {
     val realSize = clusterSize - scala.math.max(clusterSize - end, 0)
     val numPerNode = end / realSize
     None +: (1 until realSize).map(i => Some(i * numPerNode))
@@ -115,7 +166,36 @@ class TpcwLoader( val client : TpcwClient,
     val clusterSize = servers.size
 
     val hexSplits = hexSplit(clusterSize) zip servers
-    val utf8Splits = utf8Split(clusterSize) zip servers
+    val printableCharSplits = printableCharSplit(clusterSize) zip servers
+
+    // use sampling to create splits for ItemSubjectDateTitleIndexKey
+    // use 1000x the number of available servers as the number of samples to
+    // take
+
+    val itemSubjSamples = (1 to 1000 * clusterSize)
+      .map(_ => rand.nextInt(numItems) + 1)
+      .map(i => createItemSubjectDateTitleIndex(createItem(i)))
+      .sortWith { case ((ItemSubjectDateTitleIndexKey(x1, x2, _), _), (ItemSubjectDateTitleIndexKey(y1, y2, _), _)) =>
+        x1 < y1 || (x1 == y1 && x2 < y2) 
+      }.toIndexedSeq
+
+    val itemSubDateTitleIndexSplits = 
+      None +: (1 until clusterSize).map(i => Some(itemSubjSamples(i * 1000)._1))
+
+    logger.info("itemSubDateTitleIndexSplits: %s", itemSubDateTitleIndexSplits)
+
+    val itemTitleSamples = (1 to 1000 * clusterSize)
+      .map(_ => rand.nextInt(numItems) + 1)
+      .flatMap(i => createItemTitleIndex(createItem(i)))
+      .sortWith { case ((ItemTitleIndexKey(x1, x2, _), _), (ItemTitleIndexKey(y1, y2, _), _)) =>
+        x1 < y1 || (x1 == y1 && x2 < y2) 
+      }.toIndexedSeq
+
+    val stepSize = itemTitleSamples.size.toDouble / clusterSize.toDouble
+    assert(stepSize > 0.0)
+
+    val itemTitleIndexSplits =
+      None +: (1 until clusterSize).map(i => Some(itemTitleSamples((i.toDouble * stepSize).toInt)._1))
 
     // assume no replication factor
     TpcwKeySplits(
@@ -141,7 +221,7 @@ class TpcwLoader( val client : TpcwClient,
       hexSplits.map(x => (x._1.map(ItemKey(_)), List(x._2))),
 
       // item_subject_date_title_indexes
-      utf8Splits.map(x => (x._1.map(ItemSubjectDateTitleIndexKey(_, 0L, "")), List(x._2))),
+      (itemSubDateTitleIndexSplits zip servers).map(x => (x._1, List(x._2))),
 
       // orderlines
       hexSplits.map(x => (x._1.map(OrderLineKey(_, 0)), List(x._2))), 
@@ -153,7 +233,7 @@ class TpcwLoader( val client : TpcwClient,
       hexSplits.map(x => (x._1.map(CustomerOrderIndex(_, 0, "")), List(x._2))),
 
       // title_indexes
-      utf8Splits.map(x => (x._1.map(ItemTitleIndexKey(_, "", "")), List(x._2))),
+      (itemTitleIndexSplits zip servers).map(x => (x._1, List(x._2))),
 
       // shopping_carts
       hexSplits.map(x => (x._1.map(ShoppingCartItemKey(_, "")), List(x._2)))
@@ -229,9 +309,38 @@ class TpcwLoader( val client : TpcwClient,
     }
   }
 
+  /**
+   * Assumes clientId is indexed by 0
+   */
   def getData(clientId: Int, useViews: Boolean = true) : TpcwData = {
+    require(0 <= clientId && clientId < numClients, "Invalid client id")
+
+    /** log what the entire data set will look like in terms of sizes */
+    logger.info("--- Entire TPC-W data set ---")
+    logger.info("numCustomers: %d", numCustomers)
+    logger.info("numAddresses: %d", numAddresses)
+    logger.info("numAuthors: %d", numAuthors)
+    logger.info("numOrders: %d", numOrders)
+    logger.info("numCountries: %d", numCountries)
+    logger.info("numItems: %d", numItems)
+
+    /** assuming [1, upperBound], returns the slice of data for this clientId */
+    def getSlice(upperBound: Int) = {
+      require(upperBound >= 1)
+      val numPerClient = upperBound / numClients
+      if (numPerClient == 0) { // this is the case where there are more clients than elements to slice
+        if (clientId >= upperBound) Seq.empty
+        else (clientId + 1 to clientId + 1)
+      } else {
+        val start = clientId * numPerClient + 1
+        if (clientId == numClients - 1) (start to upperBound)
+        else (start until (start + numPerClient))
+      }
+    }
+
     def newRange(upperBound: Int) = 
-      if (useViews) (1 to upperBound).view else (1 to upperBound)
+      if (useViews) getSlice(upperBound).view 
+      else getSlice(upperBound)
 
     val addresses = newRange(numAddresses).map(createAddress(_))
     val authors = newRange(numAuthors).map(createAuthor(_))
@@ -241,10 +350,8 @@ class TpcwLoader( val client : TpcwClient,
 
     // these two can't be views b/c we need each invocation to be
     // deterministic
-    //val items = (1 to numItems).view.map(createItem(_))
-    //val orders = (1 to numOrders).view.map(createOrder(_))
-    val items = (1 to numItems).map(createItem(_))
-    val orders = (1 to numOrders).map(createOrder(_))
+    val items = getSlice(numItems).map(createItem(_))
+    val orders = getSlice(numOrders).map(createOrder(_))
 
     val orderlines = newRange(numOrders).flatMap(createOrderline(_))
 
@@ -252,6 +359,15 @@ class TpcwLoader( val client : TpcwClient,
     val itemSubjectDateTitleIndexes = items.map(createItemSubjectDateTitleIndex(_))
     val customerOrderIndexes = orders.map(createCustomerOrderIndex(_)) 
     val itemTitleIndexes = items.flatMap(createItemTitleIndex(_)) 
+
+    /** log what this client will be loading */
+    logger.info("--- ClientId %d's Data Slice ---", clientId)
+    logger.info("numCustomers: %d", getSlice(numCustomers).size)
+    logger.info("numAddresses: %d", getSlice(numAddresses).size)
+    logger.info("numAuthors: %d", getSlice(numAuthors).size)
+    logger.info("numOrders: %d", getSlice(numOrders).size)
+    logger.info("numCountries: %d", getSlice(numCountries).size)
+    logger.info("numItems: %d", getSlice(numItems).size)
        
     TpcwData(
       addresses,

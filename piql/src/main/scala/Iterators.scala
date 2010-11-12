@@ -9,7 +9,7 @@ import edu.berkeley.cs.scads.comm.ScadsFuture
 import java.{ util => ju }
 import scala.collection.mutable.Queue
 
-case class Context(parameters: Array[Any], state: Option[List[Any]])
+case class Context(parameters: IndexedSeq[Any], state: Option[List[Any]])
 
 abstract class QueryIterator extends Iterator[Tuple] {
   val name: String
@@ -69,7 +69,7 @@ class PageResult(private val iterator: QueryIterator, val elemsPerPage: Int) ext
 trait QueryExecutor {
   protected val logger = Logger("edu.berkeley.cs.scads.piql.QueryExecutor")
 
-  def apply(plan: QueryPlan, args: Any*): QueryIterator = apply(plan)(Context(args.toArray, None))
+  def apply(plan: QueryPlan, args: Any*): QueryIterator = apply(plan)(Context(args.toIndexedSeq, None))
   def apply(plan: QueryPlan)(implicit ctx: Context): QueryIterator
 
   protected def bindValue(value: Value, currentTuple: Tuple)(implicit ctx: Context): Any = value match {
@@ -90,8 +90,8 @@ trait QueryExecutor {
     case FixedLimit(l) => l
     case ParameterLimit(lim, max) => {
       val limitValue = ctx.parameters(lim).asInstanceOf[Int]
-      if(limitValue > max)
-        throw new RuntimeException("Limit out of range")
+      //if(limitValue > max)
+      //  throw new RuntimeException("Limit out of range")
       limitValue
     }
   }
@@ -629,7 +629,6 @@ class ParallelExecutor extends SimpleExecutor {
 
     case _ => super.apply(plan)
   }
-
 }
 
 

@@ -67,6 +67,30 @@ class KeyValueStoreSpec extends Spec with ShouldMatchers {
     }
 
     describe("getRange Method") {
+      it("should have bulkGetRange") {
+        //val ns = cluster.getNamespace[IntRec, IntRec]("bulkrangetest")
+
+        ///* Insert Integers 1-100 */
+        //(1 to 100).foreach(i => ns.put(IntRec(i),IntRec(i)))
+
+        //val queriesAnswers =
+        //  ((null, null), (1 to 100)) ::
+        //  ((null, IntRec(50)), (1 until 50)) ::
+        //  ((IntRec(50), null), (50 to 100)) ::
+        //  ((IntRec(10), IntRec(90)), (10 until 90)) ::
+        //  ((IntRec(-10), null), (1 to 100)) ::
+        //  ((null, IntRec(110)), (1 to 100)) ::
+        //  ((IntRec(-10), IntRec(110)), (1 to 100)) :: Nil
+
+        //val futures = ns.asyncGetRange(queriesAnswers.map(_._1).map(q => (Option(q._1), Option(q._2))))
+        //  futures.zip(queriesAnswers.map(_._2)).foreach {
+        //  case (future, correctAnswer) => future().map(_._1.f1) should equal(correctAnswer)
+        //}
+
+        pending 
+      }
+
+
       it("should suport prefixKeys") {
         val ns = cluster.getNamespace[IntRec3, IntRec]("prefixrange")
         val data = for(i <- 1 to 10; j <- 1 to 10; k <- 1 to 10)

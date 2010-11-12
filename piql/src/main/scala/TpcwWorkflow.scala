@@ -104,7 +104,12 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
   private var currentUserKey: CustomerKey = _
   private var currentUserValue: CustomerValue = _
 
-  def executeMix() = {
+  /**
+   * Advances the TPC-W markov chain model one state transition. returns a
+   * tuple of the state that was JUST completed (not the state that was transitioned to), 
+   * and a boolean flag whether or not it was actually executed (false if punted)
+   */
+  def executeMix(): (ActionType.ActionType, Boolean) = {
     nextAction match {
       case Action(ActionType.Home, _) => {
         logger.debug("Home")
@@ -219,6 +224,8 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
         logger.debug("AdminConfirm")
         // NO-OP! we pondered very deeply about whether or not to run this
         // query, and then we said no :) 
+      case Action(ActionType.BestSeller, _) =>
+        // NO-OP b/c this is another analytics query
       case Action(tpe, _) =>
         logger.error("Not supported: " + tpe)
     }
@@ -227,7 +234,9 @@ class TpcwWorkflow(val loader: TpcwLoader, val randomSeed: Option[Int] = None) {
 
     val action = nextAction.nextActions.find(rnd < _._1)
     assert(action.isDefined)
+    val nextAction0 = nextAction
     nextAction = action.get._2
-
+    (nextAction0.action, !(nextAction0.action == ActionType.AdminConfirm || 
+                           nextAction0.action == ActionType.BestSeller))
  }
 }
