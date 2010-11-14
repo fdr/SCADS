@@ -181,22 +181,24 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     
     val keyClass = keyType.erasure.asInstanceOf[Class[KeyType]]
     val valueClass = valueType.erasure.asInstanceOf[Class[KeyType]]
-    var keyTypeClosure = RemoteClassClosure.create(keyClass)
-    var valueTypeClosure = RemoteClassClosure.create(valueClass)
-    var mapperClosure = RemoteClassClosure.create(mapper)
+    val keyTypeClosure = RemoteClassClosure.create(keyClass)
+    val valueTypeClosure = RemoteClassClosure.create(valueClass)
+    val mapperClosure = RemoteClassClosure.create(mapper)
     
-    partitions.foreach(range => {
+    val ackFutures = partitions.map(range => {
       val maprequest = new MapRequest(
           range.startKey.map(serializeKey(_)),
           range.endKey.map(serializeKey(_)),
           keyTypeClosure, valueTypeClosure, mapperClosure)
       // Range contains a list of storage nodes. We run map on the range
       // on only one storage node. Use "range.values.map(_ !! rangeRequest)"
-      // to send the request to all values.       
+      // to send the request to all values.
       range.values(0) !! maprequest
     })
     
-    // TODO(rxin): block until every mapper finishes executing.
+    // Block until all mapper finish executing.
+    // TODO(rxin): fault-tolerance. If a job fails, this will wait forever.
+    ackFutures.foreach( _.get() )
   }
 
   /**
