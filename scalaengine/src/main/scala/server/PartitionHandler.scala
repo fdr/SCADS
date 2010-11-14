@@ -8,18 +8,27 @@ import edu.berkeley.cs.scads.comm._
 
 import java.util.{ Arrays => JArrays }
 
-import org.apache.avro.generic.{GenericData, GenericRecord, IndexedRecord}
-import org.apache.avro.specific.{SpecificDatumReader, SpecificDatumWriter}
-import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder,
-                           DatumReader, DatumWriter, ResolvingDecoder}
+import org.apache.avro.generic.{GenericData, GenericDatumReader, GenericRecord, IndexedRecord}
+import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDecoder}
 
-import org.apache.avro.specific.SpecificRecordBase
+import org.apache.avro.specific.{SpecificDatumReader, SpecificRecordBase}
+
+import edu.berkeley.cs.avro.marker.AvroRecord
+import edu.berkeley.cs.scads.mapreduce.{Mapper, MapperContext}
+
 
 /**
  * Handles a partition from [startKey, endKey). Refuses to service any
  * requests which fall out of this range, by returning a ProcessingException
  */
-class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#ZooKeeperNode, val startKey: Option[Array[Byte]], val endKey: Option[Array[Byte]], val nsRoot: ZooKeeperProxy#ZooKeeperNode, val keySchema: Schema) extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
+class PartitionHandler(
+    val db: Database,
+    val partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
+    val startKey: Option[Array[Byte]],
+    val endKey: Option[Array[Byte]],
+    val nsRoot: ZooKeeperProxy#ZooKeeperNode,
+    val keySchema: Schema)
+    extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
   protected val logger = Logger()
   implicit def toOption[A](a: A): Option[A] = Option(a)
 
@@ -75,7 +84,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
         (isStartKeyLEQ(minKey) && isEndKeyGEQ(maxKey), Right((minKey, maxKey)))
       /* Requires startKey <= minKey and endKey >= maxKey (so specifying the
        * entire range is allowed */
-      case MapRequest(minKey, maxKey, _, _, _, _) =>
+      case MapRequest(minKey, maxKey, _, _, _) =>
         (isStartKeyLEQ(minKey) && isEndKeyGEQ(maxKey), Right((minKey, maxKey)))
       /* Requires startKey <= minKey and endKey >= maxKey (so specifying the
        * entire range is allowed */
@@ -115,7 +124,7 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           }
         }
         case GetRangeRequest(minKey, maxKey, limit, offset, ascending) => {
-          logger.debug("[%s] GetRangeRequest: [%s, %s)", this, JArrays.toString(minKey.orNull), JArrays.toString(maxKey.orNull))
+          logger.debug("[%s] GetRangeRequest: [%s, %s)]", this, JArrays.toString(minKey.orNull), JArrays.toString(maxKey.orNull))
           val records = new scala.collection.mutable.ListBuffer[Record]
           iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
             records += Record(key.getData, value.getData)
@@ -136,67 +145,51 @@ class PartitionHandler(val db: Database, val partitionIdLock: ZooKeeperProxy#Zoo
           }
           reply(BatchResponse(results))
         }
-        case MapRequest(minKey, maxKey, fn, limit, offset, ascending) => {
-          logger.debug("[%s] MapRequest: [%s, %s)", this,
+        case MapRequest(minKey, maxKey, keyTypeClosure, valueTypeClosure,
+                        mapperClosure) => {
+          // TODO(rxin): This part of the code should be abstracted out to
+          // the mapreduce folder.
+          logger.debug("[%s] MapRequest: [%s, %s)]", this,
                        JArrays.toString(minKey.orNull),
                        JArrays.toString(maxKey.orNull))
-
-          val closure = SerializeUtil.fromByteArray[RemoteClosure](fn)
-          val mapFn = SerializeUtil.fromByteArray[Function2[Any, Any, Any]](closure.mapFnBytes)
-          val aggFn = closure.aggFnBytes match {
-            case None => null
-            case Some(bytes) => SerializeUtil.fromByteArray[Function2[Any, Any, Any]](bytes)
-          }
-          // Get the avro schemas.
-          val keySchema   = closure.keyTypeClass.newInstance.asInstanceOf[SpecificRecordBase].getSchema
-          val valueSchema =  closure.valueTypeClass.newInstance.asInstanceOf[SpecificRecordBase].getSchema
-          // Various objects to deserialize the key.
-          // TODO: Will this be the ultimate problem with this approach?  Does
-          //       the deserialization cancel benefits of local computation??
-          //       If so, maybe we should consider just using strings or something
-          //       to avoid deserializing at least the data.
-          val decoderFactory = (new DecoderFactory).configureDirectDecoder(true)
-          val newKeyInstance = closure.keyTypeClass.newInstance.asInstanceOf[SpecificRecordBase]
-          val newValueInstance = closure.valueTypeClass.newInstance.asInstanceOf[SpecificRecordBase]
+          
+          // Initialize mapper and context ... Perhaps do more setup here.
+          val mapperClass = mapperClosure.retrieveClass()
+          val mapper = mapperClass.newInstance().asInstanceOf[ Mapper ]
+          val context = new MapperContext()
+          
+          // keySchema is given. Let's get the valueSchema.
+          //val keyTypeClass = keyTypeClosure.retrieveClass()
+          //val keyInstance = keyTypeClass.newInstance()
+          val valueTypeClass = valueTypeClosure.retrieveClass()
+          val valueInstance = valueTypeClass.newInstance()
+              .asInstanceOf[ AvroRecord ]
+          val valueSchema = valueInstance.getSchema()
+          
+          // Setup the decoder for the key and the value.
+          // There is no need for a resolving decoder here.
+          val decoderFactory = ( new DecoderFactory )
+              .configureDirectDecoder(true)
           val keyReader = new SpecificDatumReader[SpecificRecordBase](keySchema)
-          val keySchemaResolver =
-            ResolvingDecoder.resolve(keySchema, keySchema)
-          val valueReader = new SpecificDatumReader[SpecificRecordBase](valueSchema)
-          val valueSchemaResolver =
-            ResolvingDecoder.resolve(valueSchema, valueSchema)
-
-          var aggResult: Option[_] = None
-
-          val records = new scala.collection.mutable.ListBuffer[Record]
-          iterateOverRange(minKey, maxKey, limit, offset, ascending)((key, value, _) => {
-              val keyDecoder = decoderFactory.createBinaryDecoder(key.getData, null)
-              val keyObj = keyReader.read(newKeyInstance, new ResolvingDecoder(keySchemaResolver, keyDecoder))
-              // HACK: first 16 bytes are special to SCADS
-              val valueDecoder = decoderFactory.createBinaryDecoder(value.getData.slice(16, value.getData.length), null)
-              val valueObj = valueReader.read(newValueInstance, new ResolvingDecoder(valueSchemaResolver, valueDecoder))
-              val mapResult = mapFn(keyObj, valueObj)
-
-              if (aggFn != null) {
-                // An aggregation function exists.
-                if (aggResult != None) {
-                  aggResult = aggFn(mapResult, aggResult)
-                } else {
-                  aggResult = aggFn(mapResult, None)
-                }
-              } else {
-                // No aggregation function.
-                records += Record(SerializeUtil.toByteArray(mapResult), None)
-              }
+          val valueReader = new SpecificDatumReader[SpecificRecordBase](
+              valueSchema)
+          
+          iterateOverRange(minKey, maxKey)((key, value, _) => {
+            // TODO(rxin): reuse decoder (replace the 3rd argument null).
+            val keyObj = keyReader.read(null,
+                decoderFactory.createBinaryDecoder(key.getData, null))
+            val valueBinaryData = value.getData.slice(16, value.getData.length)
+            val valueObj = valueReader.read(null,
+                decoderFactory.createBinaryDecoder(valueBinaryData, null))
+            
+            println(keyObj + " ::: " + valueObj)
+            mapper.map(keyObj.asInstanceOf[AvroRecord],
+                       valueObj.asInstanceOf[AvroRecord],
+                       context)
           })
-          if (aggFn != null) {
-            aggResult match {
-              case None =>
-              // HACK: SCADS assumes only Records are passed back.  Just using the
-              //       key field byte array for the serialized results.
-              case Some(x) => records += Record(SerializeUtil.toByteArray(x), None)
-            }
-          }
-          reply(MapResponse(records.toList))
+          
+          // Reply with an ACK when done.
+          reply(MapRequestComplete())
         }
         case CountRangeRequest(minKey, maxKey) => {
           var count = 0

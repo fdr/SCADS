@@ -2,10 +2,8 @@ package edu.berkeley.cs.scads.comm
 
 import java.io._
 import java.nio.ByteBuffer
-import org.apache.avro.specific.SpecificRecordBase
-import org.apache.avro.generic.{GenericData, GenericRecord, IndexedRecord}
 import edu.berkeley.cs.avro.marker.AvroRecord
-import edu.berkeley.cs.avro.marker.AvroUnion
+
 
 object SerializeUtil {
   def fromByteArray[ResultType](bytes: Array[Byte]): ResultType = {
@@ -23,15 +21,22 @@ object SerializeUtil {
   }
 }
 
-@serializable
-class RemoteClosure(keyType: Class[_], valueType: Class[_],
-                    mapFn: Function2[_, _, _],
-                    aggFn: Option[Function2[_, _, _]]) {
-  val keyTypeClass = keyType
-  val valueTypeClass = valueType
-  val mapFnBytes = Closure(mapFn)
-  val aggFnBytes = aggFn match {
-    case None => None
-    case Some(fn) => Some(Closure(fn))
+
+/**
+ * Remote Closure for a class. This is a fake remote closure since true remote
+ * closure would require us to serialize the bytecode of the class, not just
+ * the signature of the class.
+ */
+case class RemoteClassClosure(var rawbytes: Array[Byte]) extends AvroRecord {
+  def retrieveClass(): Class[_] = {
+    SerializeUtil.fromByteArray[ Class[_] ](rawbytes)
   }
 }
+
+
+object RemoteClassClosure {
+  def create(c: Class[_]): RemoteClassClosure = {
+    RemoteClassClosure(SerializeUtil.toByteArray(c))
+  }
+}
+

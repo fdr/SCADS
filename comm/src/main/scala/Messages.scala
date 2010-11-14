@@ -44,14 +44,6 @@ case class CountRangeResponse(var count: Int) extends AvroRecord with KeyValueSt
 case class TestSetRequest(var key: Array[Byte], var value: Option[Array[Byte]], var expectedValue: Option[Array[Byte]]) extends AvroRecord with KeyValueStoreOperation
 case class TestSetResponse(var success: Boolean) extends AvroRecord with KeyValueStoreOperation
 
-case class MapRequest(var minKey: Option[Array[Byte]],
-                      var maxKey: Option[Array[Byte]],
-                      var fn: Array[Byte],
-                      var limit: Option[Int] = None,
-                      var offset: Option[Int] = None,
-                      var ascending: Boolean = true) extends AvroRecord with KeyValueStoreOperation
-case class MapResponse(var records: List[Record]) extends AvroRecord with KeyValueStoreOperation
-
 /* Storage Handler Operations */
 sealed trait StorageServiceOperation extends MessageBody
 case class CreatePartitionRequest(var namespace: String, var startKey: Option[Array[Byte]] = None, var endKey: Option[Array[Byte]] = None) extends AvroRecord with StorageServiceOperation
@@ -101,4 +93,20 @@ case class QuorumProtocolConfig(var readQuorum : Double, var writeQuorum : Doubl
 
 case class KeyRange(var startKey: Option[Array[Byte]], var servers : Seq[PartitionService]) extends AvroRecord
 case class RoutingTableMessage(var partitions: Seq[KeyRange]) extends AvroRecord
+
+
+/* Map Reduce Messages */
+
+// TODO(rxin): valueSchema should really be cached on the storage nodes.
+// But we still can't re-generate the corresponding scala case class based
+// on the schema - so that probably won't happen.
+case class MapRequest(
+  var minKey: Option[Array[Byte]],
+  var maxKey: Option[Array[Byte]],
+  var keyTypeClass: RemoteClassClosure,
+  var valueTypeClass: RemoteClassClosure,
+  var mapper: RemoteClassClosure)
+extends AvroRecord with KeyValueStoreOperation
+
+case class MapRequestComplete() extends AvroRecord with KeyValueStoreOperation
 
