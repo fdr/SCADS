@@ -167,6 +167,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   * 
   * @param  startKeyPrefix  well isn't it obvious
   * @param  endKeyPrefix    well isn't it obvious
+  * @param  mapper          well isn't it obvious
   */
   def executeMappers(startKeyPrefix: Option[KeyType],
     endKeyPrefix: Option[KeyType], mapper: Class[_])
@@ -183,9 +184,6 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     var keyTypeClosure = RemoteClassClosure.create(keyClass)
     var valueTypeClosure = RemoteClassClosure.create(valueClass)
     var mapperClosure = RemoteClassClosure.create(mapper)
-    
-    //val valueSchemaJson = valueType.erasure.asInstanceOf[Class[ValueType]]
-    //    .newInstance.getSchema().toString()
     
     partitions.foreach(range => {
       val maprequest = new MapRequest(

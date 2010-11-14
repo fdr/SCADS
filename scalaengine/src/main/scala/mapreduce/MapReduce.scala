@@ -1,5 +1,6 @@
 package edu.berkeley.cs.scads.mapreduce
 
+import scala.collection.mutable.{Buffer, ListBuffer, HashMap, Map}
 import edu.berkeley.cs.avro.marker.AvroRecord
 
 
@@ -23,9 +24,11 @@ trait Reducer {
  * A quick implementation of the MapperContext class.
  */
 class MapperContext extends Context {
+  
+  val mapperOutput = HashMap.empty[ AvroRecord, Buffer[AvroRecord] ]
+  
   def collect(key: AvroRecord, value: AvroRecord): Unit = {
-    println(key)
-    println(value)
+    mapperOutput.getOrElseUpdate(key, ListBuffer[AvroRecord]()).append(value)
   }
   
   def reportStatus(msg: String): Unit = {

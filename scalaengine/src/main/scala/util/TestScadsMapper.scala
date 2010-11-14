@@ -10,7 +10,8 @@ class TestMapper extends Mapper {
   def map(key: AvroRecord, value: AvroRecord, context: Context): Unit = {
     val keyInt = key.asInstanceOf[IntRec].f1
     val valueStr = value.asInstanceOf[StringRec].f1
-    context.collect(key, StringRec(valueStr + "-" + keyInt))
+    //context.collect(key, StringRec(valueStr + "-" + keyInt))
+    context.collect(IntRec(500), StringRec(valueStr + "-" + keyInt))
   }
 }
 

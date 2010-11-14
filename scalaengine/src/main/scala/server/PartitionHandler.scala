@@ -188,6 +188,8 @@ class PartitionHandler(
                        context)
           })
           
+          context.mapperOutput.foreach(t => println(t._1 + "..." + t._2))
+          
           // Reply with an ACK when done.
           reply(MapRequestComplete())
         }
