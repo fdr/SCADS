@@ -27,7 +27,8 @@ class PartitionHandler(
     val startKey: Option[Array[Byte]],
     val endKey: Option[Array[Byte]],
     val nsRoot: ZooKeeperProxy#ZooKeeperNode,
-    val keySchema: Schema)
+    val keySchema: Schema,
+    val cluster: ScadsCluster)
     extends ServiceHandler[PartitionServiceOperation] with AvroComparator {
   protected val logger = Logger()
   implicit def toOption[A](a: A): Option[A] = Option(a)
@@ -156,7 +157,7 @@ class PartitionHandler(
           // Initialize mapper and context ... Perhaps do more setup here.
           val mapperClass = mapperClosure.retrieveClass()
           val mapper = mapperClass.newInstance().asInstanceOf[ Mapper ]
-          val context = new MapperContext()
+          val context = new MapperContext(cluster)
           
           // keySchema is given. Let's get the valueSchema.
           //val keyTypeClass = keyTypeClosure.retrieveClass()

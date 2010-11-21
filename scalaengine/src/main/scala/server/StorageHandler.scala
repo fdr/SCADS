@@ -30,6 +30,8 @@ object StorageHandler {
 class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode) 
   extends ServiceHandler[StorageServiceOperation] {
 
+  val cluster = new ScadsCluster(root)
+
   val counterId = StorageHandler.idGen.getAndIncrement()
 
   override def toString = 
@@ -106,7 +108,7 @@ class StorageHandler(env: Environment, val root: ZooKeeperProxy#ZooKeeperNode)
   private def makePartitionHandler(
       database: Database, namespace: String, partitionIdLock: ZooKeeperProxy#ZooKeeperNode,
       startKey: Option[Array[Byte]], endKey: Option[Array[Byte]]) =
-    new PartitionHandler(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), keySchemaFor(namespace))
+    new PartitionHandler(database, partitionIdLock, startKey, endKey, getNamespaceRoot(namespace), keySchemaFor(namespace), cluster)
 
   /** Iterator scans the entire cursor and does not close it */
   private implicit def cursorToIterator(cursor: Cursor): Iterator[(DatabaseEntry, DatabaseEntry)]
