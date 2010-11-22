@@ -185,15 +185,16 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     val valueTypeClosure = RemoteClassClosure.create(valueClass)
     val mapperClosure = RemoteClassClosure.create(mapper)
     
-    val ackFutures = partitions.map(range => {
+    val ackFutures = (partitions zip (1 to partitions.length)).map(range => {
       val maprequest = new MapRequest(
-          range.startKey.map(serializeKey(_)),
-          range.endKey.map(serializeKey(_)),
+          range._2,
+          range._1.startKey.map(serializeKey(_)),
+          range._1.endKey.map(serializeKey(_)),
           keyTypeClosure, valueTypeClosure, mapperClosure)
       // Range contains a list of storage nodes. We run map on the range
       // on only one storage node. Use "range.values.map(_ !! rangeRequest)"
       // to send the request to all values.
-      range.values(0) !! maprequest
+      range._1.values(0) !! maprequest
     })
     
     // Block until all mapper finish executing.

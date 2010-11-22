@@ -85,7 +85,7 @@ class PartitionHandler(
         (isStartKeyLEQ(minKey) && isEndKeyGEQ(maxKey), Right((minKey, maxKey)))
       /* Requires startKey <= minKey and endKey >= maxKey (so specifying the
        * entire range is allowed */
-      case MapRequest(minKey, maxKey, _, _, _) =>
+      case MapRequest(_, minKey, maxKey, _, _, _) =>
         (isStartKeyLEQ(minKey) && isEndKeyGEQ(maxKey), Right((minKey, maxKey)))
       /* Requires startKey <= minKey and endKey >= maxKey (so specifying the
        * entire range is allowed */
@@ -146,14 +146,14 @@ class PartitionHandler(
           }
           reply(BatchResponse(results))
         }
-        case MapRequest(minKey, maxKey, keyTypeClosure, valueTypeClosure,
-                        mapperClosure) => {
+        case MapRequest(mapperId, minKey, maxKey, keyTypeClosure,
+                        valueTypeClosure, mapperClosure) => {
           // TODO(rxin): This part of the code should be abstracted out to
           // the mapreduce folder.
           logger.debug("[%s] MapRequest: [%s, %s)]", this,
                        JArrays.toString(minKey.orNull),
                        JArrays.toString(maxKey.orNull))
-          
+
           // Initialize mapper and context ... Perhaps do more setup here.
           val mapperClass = mapperClosure.retrieveClass()
           val mapper = mapperClass.newInstance().asInstanceOf[ Mapper ]

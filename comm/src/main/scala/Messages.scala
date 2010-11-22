@@ -101,6 +101,7 @@ case class RoutingTableMessage(var partitions: Seq[KeyRange]) extends AvroRecord
 // But we still can't re-generate the corresponding scala case class based
 // on the schema - so that probably won't happen.
 case class MapRequest(
+  var mapperId: Int,
   var minKey: Option[Array[Byte]],
   var maxKey: Option[Array[Byte]],
   var keyTypeClass: RemoteClassClosure,
