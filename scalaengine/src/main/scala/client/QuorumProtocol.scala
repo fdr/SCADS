@@ -164,13 +164,10 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   /**
   * Execute mappers on the specified range and block until all jobs finish.
-  * 
-  * @param  startKeyPrefix  well isn't it obvious
-  * @param  endKeyPrefix    well isn't it obvious
-  * @param  mapper          well isn't it obvious
   */
-  def executeMappers(startKeyPrefix: Option[KeyType],
-    endKeyPrefix: Option[KeyType], mapper: Class[_])
+  private def executeMappers(startKeyPrefix: Option[KeyType],
+    endKeyPrefix: Option[KeyType], mapper: Class[_],
+    combiner: Option[Class[_]], nsOutput: String)
   : Unit = {
     // Determine the messages
     val startKey = startKeyPrefix.map(
@@ -180,26 +177,84 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     val partitions = serversForRange(startKey, endKey)
     
     val keyClass = keyType.erasure.asInstanceOf[Class[KeyType]]
-    val valueClass = valueType.erasure.asInstanceOf[Class[KeyType]]
+    val valueClass = valueType.erasure.asInstanceOf[Class[ValueType]]
     val keyTypeClosure = RemoteClassClosure.create(keyClass)
     val valueTypeClosure = RemoteClassClosure.create(valueClass)
     val mapperClosure = RemoteClassClosure.create(mapper)
-    
+    val combinerClosure = combiner match {
+      case None => None
+      case Some(c) => Some(RemoteClassClosure.create(c))
+    }
+
     val ackFutures = (partitions zip (1 to partitions.length)).map(range => {
-      val maprequest = new MapRequest(
+      val mapRequest = new MapRequest(
           range._2,
           range._1.startKey.map(serializeKey(_)),
           range._1.endKey.map(serializeKey(_)),
-          keyTypeClosure, valueTypeClosure, mapperClosure)
+          keyTypeClosure, valueTypeClosure, mapperClosure, combinerClosure,
+          nsOutput)
       // Range contains a list of storage nodes. We run map on the range
       // on only one storage node. Use "range.values.map(_ !! rangeRequest)"
       // to send the request to all values.
-      range._1.values(0) !! maprequest
+      range._1.values(0) !! mapRequest
     })
     
     // Block until all mapper finish executing.
     // TODO(rxin): fault-tolerance. If a job fails, this will wait forever.
     ackFutures.foreach( _.get() )
+  }
+  
+  protected def executeReducers[ReduceKey, ReduceValue](reducer: Class[_],
+                                                        nsResult: String)
+      (implicit reduceKeyType: Manifest[ReduceKey],
+       reduceValueType: Manifest[ReduceValue]): Unit = {
+    
+    // Run reducers on all partitions.
+    val partitions = serversForRange(None, None)
+    val reducerClosure = RemoteClassClosure.create(reducer)
+
+    val keyClass = reduceKeyType.erasure.asInstanceOf[Class[ReduceKey]]
+    val valueClass = reduceValueType.erasure.asInstanceOf[Class[ReduceValue]]
+    val keyTypeClosure = RemoteClassClosure.create(keyClass)
+    val valueTypeClosure = RemoteClassClosure.create(valueClass)
+
+    val ackFutures = (partitions zip (1 to partitions.length)).map(range => {
+      val reduceRequest = new ReduceRequest(
+          range._2,
+          keyTypeClosure, valueTypeClosure, reducerClosure, nsResult)
+      range._1.values(0) !! reduceRequest
+    })
+
+    // Block until all reducers finish executing.
+    // TODO(rxin): fault-tolerance. If a job fails, this will wait forever.
+    ackFutures.foreach( _.get() )
+  }
+
+  def executeMapReduce[ReduceKey, ReduceValue](startKeyPrefix: Option[KeyType],
+      endKeyPrefix: Option[KeyType], mapper: Class[_],
+      combiner: Option[Class[_]], reducer: Class[_], nsResult: String)
+      (implicit reduceKeyType: Manifest[ReduceKey],
+       reduceValueType: Manifest[ReduceValue]): Unit = {
+    // TODO: make a unique name generator
+    val nsOutput = "mapresult1"
+    val nstemp = cluster.createNamespace[MapResultKey, MapResultValue](nsOutput,
+        List((None, cluster.getAvailableServers)))
+    
+    println("*****************************")
+    println("***********Mappers***********")
+    println("*****************************")
+    var start_ms = System.currentTimeMillis()
+    executeMappers(startKeyPrefix, endKeyPrefix, mapper, combiner, nsOutput)
+    var elapsed_time_ms = System.currentTimeMillis() - start_ms;
+    println("elapsed time (sec): " + elapsed_time_ms / 1000.0)
+
+    println("*****************************")
+    println("**********Reducers***********")
+    println("*****************************")
+    start_ms = System.currentTimeMillis()
+    nstemp.executeReducers[ReduceKey, ReduceValue](reducer, nsResult)
+    elapsed_time_ms = System.currentTimeMillis() - start_ms;
+    println("elapsed time (sec): " + elapsed_time_ms / 1000.0)
   }
 
   /**

@@ -14,8 +14,14 @@ import org.apache.avro.io.{BinaryData, DecoderFactory, BinaryEncoder, BinaryDeco
 import org.apache.avro.specific.{SpecificDatumReader, SpecificRecordBase}
 
 import edu.berkeley.cs.avro.marker.AvroRecord
-import edu.berkeley.cs.scads.mapreduce.{Mapper, MapperContext}
+import edu.berkeley.cs.scads.mapreduce.{Mapper, MapperContext, Reducer, ReducerContext}
 
+import org.apache.avro.generic.{GenericDatumWriter}
+import org.apache.avro.specific.{SpecificDatumWriter}
+import scala.collection.mutable.{ListBuffer, HashMap}
+
+// TODO: HACK this is just for generic namespaces to work
+import edu.berkeley.cs.avro.runtime.{RichIndexedRecord}
 
 /**
  * Handles a partition from [startKey, endKey). Refuses to service any
@@ -70,6 +76,29 @@ class PartitionHandler(
         .getOrElse(false)) /* endKey not +INF, but user key is +INF, so false */
     .getOrElse(true) /* startKey is +INF, so any user key works */
 
+  // Helper function to compare two Arrays.  Returns true if equal.
+  @inline private def arrayEquals(a: Array[_], b: Array[_]): Boolean = {
+    if (a.length != b.length)
+      return false
+    val len = a.length
+    for (i <- (0 until len)) {
+      if (a(i) != b(i))
+        return false
+    }
+    return true
+  }
+
+  @inline private def encodeData(writer: SpecificDatumWriter[AvroRecord],
+      obj: AvroRecord) = {
+    val baos = new java.io.ByteArrayOutputStream
+    val enc  = new BinaryEncoder(baos)
+    writer.write(obj, enc)
+    baos.toByteArray
+  }
+
+  // Objects for serializing/deserializing
+  protected lazy val decoderFactory = (new DecoderFactory).configureDirectDecoder(true)
+
   protected def process(src: Option[RemoteActorProxy], msg: PartitionServiceOperation): Unit = {
     def reply(msg: MessageBody) = src.foreach(_ ! msg)
 
@@ -85,7 +114,7 @@ class PartitionHandler(
         (isStartKeyLEQ(minKey) && isEndKeyGEQ(maxKey), Right((minKey, maxKey)))
       /* Requires startKey <= minKey and endKey >= maxKey (so specifying the
        * entire range is allowed */
-      case MapRequest(_, minKey, maxKey, _, _, _) =>
+      case MapRequest(_, minKey, maxKey, _, _, _, _, _) =>
         (isStartKeyLEQ(minKey) && isEndKeyGEQ(maxKey), Right((minKey, maxKey)))
       /* Requires startKey <= minKey and endKey >= maxKey (so specifying the
        * entire range is allowed */
@@ -147,7 +176,8 @@ class PartitionHandler(
           reply(BatchResponse(results))
         }
         case MapRequest(mapperId, minKey, maxKey, keyTypeClosure,
-                        valueTypeClosure, mapperClosure) => {
+                        valueTypeClosure, mapperClosure, combinerClosure,
+                        nsOutput) => {
           // TODO(rxin): This part of the code should be abstracted out to
           // the mapreduce folder.
           logger.debug("[%s] MapRequest: [%s, %s)]", this,
@@ -163,36 +193,157 @@ class PartitionHandler(
           //val keyTypeClass = keyTypeClosure.retrieveClass()
           //val keyInstance = keyTypeClass.newInstance()
           val valueTypeClass = valueTypeClosure.retrieveClass()
-          val valueInstance = valueTypeClass.newInstance()
-              .asInstanceOf[ AvroRecord ]
-          val valueSchema = valueInstance.getSchema()
           
-          // Setup the decoder for the key and the value.
-          // There is no need for a resolving decoder here.
-          val decoderFactory = ( new DecoderFactory )
-              .configureDirectDecoder(true)
           val keyReader = new SpecificDatumReader[SpecificRecordBase](keySchema)
           val valueReader = new SpecificDatumReader[SpecificRecordBase](
-              valueSchema)
+              valueTypeClass.newInstance().asInstanceOf[AvroRecord].getSchema)
           
           iterateOverRange(minKey, maxKey)((key, value, _) => {
             // TODO(rxin): reuse decoder (replace the 3rd argument null).
             val keyObj = keyReader.read(null,
                 decoderFactory.createBinaryDecoder(key.getData, null))
+                .asInstanceOf[AvroRecord]
             val valueBinaryData = value.getData.slice(16, value.getData.length)
             val valueObj = valueReader.read(null,
                 decoderFactory.createBinaryDecoder(valueBinaryData, null))
-            
-            println(keyObj + " ::: " + valueObj)
-            mapper.map(keyObj.asInstanceOf[AvroRecord],
-                       valueObj.asInstanceOf[AvroRecord],
-                       context)
+                .asInstanceOf[AvroRecord]
+            mapper.map(keyObj, valueObj, context)
           })
-          
-          context.mapperOutput.foreach(t => println(t._1 + "..." + t._2))
-          
+
+          val resultContext = combinerClosure match {
+            case None => context
+            case Some(c) => {
+              val combiner = c.retrieveClass().newInstance().asInstanceOf[Reducer]
+              val combinerContext = new ReducerContext(cluster)
+              context.output.foreach(t => {
+                combiner.reduce(t._1, t._2, combinerContext)
+              })
+              combinerContext
+            }
+          }
+
+          if (resultContext.output.size > 0) {
+            val ns = cluster.getNamespace[MapResultKey, MapResultValue](nsOutput)
+            val keyWriter = new SpecificDatumWriter[AvroRecord](
+                resultContext.output.head._1.getSchema)
+            val valueWriter = new SpecificDatumWriter[AvroRecord](
+                resultContext.output.head._2.head.getSchema)
+
+            var batch = ListBuffer[(MapResultKey, MapResultValue)]()
+            resultContext.output.foreach(t => {
+              val serializedKey = encodeData(keyWriter, t._1)
+              (t._2 zip (1 to t._2.length)).foreach(v => {
+                 val serializedValue = encodeData(valueWriter, v._1)
+                 // TODO: need more efficient put.
+                 //       is there a faster way to do this?
+                 batch += Tuple2(MapResultKey(serializedKey, mapperId, v._2),
+                                 MapResultValue(serializedValue))
+                 if (batch.length > 200) {
+                   // write the batch out
+                   ns ++= batch
+                   batch.clear()
+                 }
+              })
+            })
+            if (batch.length > 0) {
+              ns ++= batch
+              batch.clear()
+            }
+          }
+
           // Reply with an ACK when done.
           reply(MapRequestComplete())
+        }
+        case ReduceRequest(reducerId, keyTypeClosure,
+                           valueTypeClosure, reducerClosure, nsResult) => {
+          // Initialize reducer and context ... Perhaps do more setup here.
+          val reducerClass = reducerClosure.retrieveClass()
+          val reducer = reducerClass.newInstance().asInstanceOf[ Reducer ]
+          val context = new ReducerContext(cluster)
+
+          val keyReader = new SpecificDatumReader[MapResultKey](
+              classOf[MapResultKey].newInstance.getSchema)
+          val valueReader = new SpecificDatumReader[MapResultValue](
+              classOf[MapResultValue].newInstance.getSchema)
+
+          val keyTypeClass = keyTypeClosure.retrieveClass()
+          val valueTypeClass = valueTypeClosure.retrieveClass()
+
+          val userKeyReader = new SpecificDatumReader[SpecificRecordBase](
+              keyTypeClass.newInstance.asInstanceOf[AvroRecord].getSchema)
+          val userValueReader = new SpecificDatumReader[SpecificRecordBase](
+              valueTypeClass.newInstance.asInstanceOf[AvroRecord].getSchema)
+
+          // Stores the values for the current key.
+          val valueList = ListBuffer[AvroRecord]()
+          // Saves the current key, to compare with.  Save both the byte array
+          // (to compare), and the object (to reduce).
+          var oldKey = (Array[Byte](),
+                        keyTypeClass.newInstance.asInstanceOf[AvroRecord])
+          iterateOverRange(None, None)((key, value, _) => {
+            // TODO(rxin): reuse decoder (replace the 3rd argument null).
+            val keyObj = keyReader.read(null,
+                decoderFactory.createBinaryDecoder(key.getData, null))
+            val valueData = value.getData.slice(16, value.getData.length)
+            val valueObj = valueReader.read(null,
+                decoderFactory.createBinaryDecoder(valueData, null))
+
+            val userKeyObj = userKeyReader.read(null,
+                decoderFactory.createBinaryDecoder(keyObj.f1, null))
+                .asInstanceOf[AvroRecord]
+            val userValueObj = userValueReader.read(null,
+                decoderFactory.createBinaryDecoder(valueObj.f1, null))
+                .asInstanceOf[AvroRecord]
+
+            if (valueList.length == 0) {
+              // no values inserted yet.
+              oldKey = (keyObj.f1.clone, userKeyObj)
+              valueList.append(userValueObj)
+            } else {
+              if (arrayEquals(keyObj.f1, oldKey._1)) {
+                // Same key.
+                valueList.append(userValueObj)
+              } else {
+                // A different key, run the reducer on all the values of the
+                // previous key.
+                reducer.reduce(oldKey._2, valueList, context)
+
+                valueList.clear()
+                oldKey = (keyObj.f1.clone, userKeyObj)
+                valueList.append(userValueObj)
+              }
+            }
+          })
+          if (valueList.length != 0) {
+            // run the reducer for the last set of values.
+            reducer.reduce(oldKey._2, valueList, context)
+          }
+
+          if (context.output.size > 0) {
+            val outputKeySchema = context.output.head._1.getSchema
+            val outputValueSchema = context.output.head._2.head.getSchema
+            val ns = cluster.getNamespace(nsResult, outputKeySchema,
+                                          outputValueSchema)
+            var batch = ListBuffer[(GenericData.Record, GenericData.Record)]()
+            context.output.foreach(t => {
+              // TODO: HACK: toGenericRecord is a hack (inefficient) to be able
+              //       to put an AvroRecord.
+              // TODO: better way to batch puts?
+              batch += Tuple2(new RichIndexedRecord(t._1).toGenericRecord,
+                              new RichIndexedRecord(t._2.head).toGenericRecord)
+              if (batch.length > 200) {
+                // write the batch out
+                ns ++= batch
+                batch.clear()
+              }
+            })
+            if (batch.length > 0) {
+              ns ++= batch
+              batch.clear()
+            }
+          }
+
+          reply(ReduceRequestComplete())
         }
         case CountRangeRequest(minKey, maxKey) => {
           var count = 0

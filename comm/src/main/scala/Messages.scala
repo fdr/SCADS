@@ -106,8 +106,21 @@ case class MapRequest(
   var maxKey: Option[Array[Byte]],
   var keyTypeClass: RemoteClassClosure,
   var valueTypeClass: RemoteClassClosure,
-  var mapper: RemoteClassClosure)
+  var mapper: RemoteClassClosure,
+  var combiner: Option[RemoteClassClosure],
+  var nsOutput: String)
 extends AvroRecord with KeyValueStoreOperation
 
 case class MapRequestComplete() extends AvroRecord with KeyValueStoreOperation
+case class MapResultKey(var f1: Array[Byte], var f2: Int, var f3: Int) extends AvroRecord
+case class MapResultValue(var f1: Array[Byte]) extends AvroRecord
+case class ReduceRequest(
+  var reduceId: Int,
+  var keyTypeClass: RemoteClassClosure,
+  var valueTypeClass: RemoteClassClosure,
+  var reducer: RemoteClassClosure,
+  var nsResult: String)
+extends AvroRecord with KeyValueStoreOperation
+
+case class ReduceRequestComplete() extends AvroRecord with KeyValueStoreOperation
 

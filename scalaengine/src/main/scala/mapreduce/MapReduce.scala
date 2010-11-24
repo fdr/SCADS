@@ -1,12 +1,13 @@
 package edu.berkeley.cs.scads.mapreduce
 
-import scala.collection.mutable.{Buffer, ListBuffer, HashMap, Map}
+import scala.collection.mutable.{Buffer, ListBuffer, ArrayBuffer, HashMap, Map}
 import edu.berkeley.cs.avro.marker.AvroRecord
 
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage.{Namespace, ScadsCluster}
 
 trait Context {
+  val output = HashMap.empty[AvroRecord, Buffer[AvroRecord]]
   def reportStatus(msg: String): Unit
   def collect(key: AvroRecord, value: AvroRecord): Unit
 }
@@ -31,11 +32,22 @@ abstract class ClientContext(cluster: ScadsCluster) {
  */
 class MapperContext(cluster: ScadsCluster)
     extends ClientContext(cluster) with Context {
+    
+  def collect(key: AvroRecord, value: AvroRecord): Unit = {
+    output.getOrElseUpdate(key, ListBuffer[AvroRecord]()).append(value)
+  }
   
-  val mapperOutput = HashMap.empty[ AvroRecord, Buffer[AvroRecord] ]
+  def reportStatus(msg: String): Unit = {
+    println(msg)
+  }
+}
+
+class ReducerContext(cluster: ScadsCluster)
+    extends ClientContext(cluster) with Context {
   
   def collect(key: AvroRecord, value: AvroRecord): Unit = {
-    mapperOutput.getOrElseUpdate(key, ListBuffer[AvroRecord]()).append(value)
+    // Reducers should only output 1 value per key.
+    output.update(key, ArrayBuffer[AvroRecord](value))
   }
   
   def reportStatus(msg: String): Unit = {
@@ -48,5 +60,5 @@ trait Mapper {
 }
 
 trait Reducer {
-  def reduce(key: AvroRecord, values: Seq[AvroRecord], context: Context): Unit
+  def reduce(key: AvroRecord, values: Seq[AvroRecord], context: ReducerContext): Unit
 }
