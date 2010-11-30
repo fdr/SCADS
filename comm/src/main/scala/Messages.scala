@@ -112,8 +112,12 @@ case class MapRequest(
 extends AvroRecord with KeyValueStoreOperation
 
 case class MapRequestComplete() extends AvroRecord with KeyValueStoreOperation
-case class MapResultKey(var f1: Array[Byte], var f2: Int, var f3: Int) extends AvroRecord
-case class MapResultValue(var f1: Array[Byte]) extends AvroRecord
+// TODO: HACK: bytes is Option[], but it is required.  It is Option so that None
+//       can be used for the partition boundaries and that equality works.
+//       (two byte arrays with the same content are NOT equal, but two None's are)
+case class MapResultKey(var hashValue: Long, var bytes: Option[Array[Byte]],
+                        var mapperId: Int, var seqNo: Int) extends AvroRecord
+case class MapResultValue(var bytes: Array[Byte]) extends AvroRecord
 case class ReduceRequest(
   var reduceId: Int,
   var keyTypeClass: RemoteClassClosure,

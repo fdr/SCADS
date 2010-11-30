@@ -163,8 +163,8 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
   }
 
   /**
-  * Execute mappers on the specified range and block until all jobs finish.
-  */
+   * Execute mappers on the specified range and block until all jobs finish.
+   */
   private def executeMappers(startKeyPrefix: Option[KeyType],
     endKeyPrefix: Option[KeyType], mapper: Class[_],
     combiner: Option[Class[_]], nsOutput: String)
@@ -237,9 +237,14 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
        reduceValueType: Manifest[ReduceValue]): Unit = {
     // TODO: make a unique name generator
     val nsOutput = "mapresult1"
+    val numServers = cluster.getAvailableServers.length
+    // Create evenly distributed partitions over the hash space (32-bits).
+    val partitionList = None :: (1 until numServers).map(
+            x => Some(MapResultKey(0xffffffffL / numServers * x, None, 0, 0))
+        ).toList zip cluster.getAvailableServers.map(List(_))
     val nstemp = cluster.createNamespace[MapResultKey, MapResultValue](nsOutput,
-        List((None, cluster.getAvailableServers)))
-    
+        partitionList)
+
     println("*****************************")
     println("***********Mappers***********")
     println("*****************************")
@@ -247,6 +252,11 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     executeMappers(startKeyPrefix, endKeyPrefix, mapper, combiner, nsOutput)
     var elapsed_time_ms = System.currentTimeMillis() - start_ms;
     println("elapsed time (sec): " + elapsed_time_ms / 1000.0)
+    println
+
+    println("Intermediate results distribution")
+    nstemp.dumpDistribution
+    println
 
     println("*****************************")
     println("**********Reducers***********")
@@ -255,6 +265,7 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     nstemp.executeReducers[ReduceKey, ReduceValue](reducer, nsResult)
     elapsed_time_ms = System.currentTimeMillis() - start_ms;
     println("elapsed time (sec): " + elapsed_time_ms / 1000.0)
+    println
   }
 
   /**
