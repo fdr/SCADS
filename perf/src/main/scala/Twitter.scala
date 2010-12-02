@@ -6,6 +6,7 @@ import deploylib.mesos._
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.config._
 import edu.berkeley.cs.scads.storage._
+import edu.berkeley.cs.scads.util._
 import edu.berkeley.cs.avro.runtime._
 import edu.berkeley.cs.avro.marker._
 
@@ -16,26 +17,32 @@ case class DataLoader(var numServers: Int, var numLoaders: Int) extends DataLoad
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
 
-    val clientId = coordination.registerAndAwait("clientsStart", numLoader)
+    val clientId = coordination.registerAndAwait("clientsStart", numLoaders)
     if (clientId == 0) {
       cluster.blockUntilReady(numServers)
 
-      cluster.getNamespace[IntRec, StringRec]("tweets")
+      cluster.getNamespace[LongRec, StringRec]("tweets")
     }
 
     coordination.registerAndAwait("startWrite", numLoaders)
-    val ns = cluster.getNamespace[IntRec, StringRec]("tweets")
+    val ns = cluster.getNamespace[LongRec, StringRec]("tweets")
 
-    val data = (1 to 10000).view.map(i => (IntRec(i), StringRec("Tweet")))
+    // LARGE files start from 2428
+    val startFile = 2428
+    val numFilesToLoad = 1
+    val filenameBase = "/work/marmbrus/twitter/ec2/"
 
-    val startTime = System.currentTimeMillis
-    logger.info("Starting bulk put")
-    ns ++= data
-    logger.info("Bulk put complete")
+    (0 until numFilesToLoad).view.map(numLoaders*_ + startFile + clientId)
+        .filter(_ < (startFile + numFilesToLoad)).foreach(num => {
+      val filename = filenameBase + "raw." + num + ".txt.gz"
+      logger.info("Loader: " + clientId + ", loading file: " + filename)
+      TwitterLoader.loadFile(filename, ns)
+    })
 
     coordination.registerAndAwait("endWrite", numLoaders)
 
-    if (clientId == 0)
+    if (clientId == 0) {
       clusterRoot.createChild("clusterReady", data = this.toJson.getBytes)
+    }
   }
 }
