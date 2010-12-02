@@ -32,9 +32,10 @@ case class DataLoader(var numServers: Int, var numLoaders: Int) extends DataLoad
     val numFilesToLoad = 1
     val filenameBase = "/work/marmbrus/twitter/ec2/"
 
-    (0 until numFilesToLoad).view.map(numLoaders*_ + startFile + clientId)
-        .filter(_ < (startFile + numFilesToLoad)).foreach(num => {
-      val filename = filenameBase + "raw." + num + ".txt.gz"
+    (0 until numFilesToLoad).view.map(
+        numLoaders*_ + startFile + clientId).filter(
+            _ < (startFile + numFilesToLoad)).foreach(num => {
+      val filename = filenameBase + "raw." + "%04d".format(num) + ".txt.gz"
       logger.info("Loader: " + clientId + ", loading file: " + filename)
       TwitterLoader.loadFile(filename, ns)
     })
