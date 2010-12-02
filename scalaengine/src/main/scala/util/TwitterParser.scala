@@ -1,4 +1,5 @@
 package edu.berkeley.cs.scads.util
+package twitter
 
 import scala.collection.mutable.{HashMap, ListBuffer}
 
