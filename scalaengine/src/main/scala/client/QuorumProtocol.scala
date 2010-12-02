@@ -232,11 +232,12 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
 
   def executeMapReduce[ReduceKey, ReduceValue](startKeyPrefix: Option[KeyType],
       endKeyPrefix: Option[KeyType], mapper: Class[_],
-      combiner: Option[Class[_]], reducer: Class[_], nsResult: String)
+      combiner: Option[Class[_]], reducer: Class[_], nsResult: String,
+      deleteTemp: Boolean = false)
       (implicit reduceKeyType: Manifest[ReduceKey],
        reduceValueType: Manifest[ReduceValue]): Unit = {
     // TODO: make a unique name generator
-    val nsOutput = "mapresult1"
+    val nsOutput = "mapresult" + System.currentTimeMillis().toString
     val numServers = cluster.getAvailableServers.length
     // Create evenly distributed partitions over the hash space (32-bits).
     val partitionList = None :: (1 until numServers).map(
@@ -266,6 +267,8 @@ abstract class QuorumProtocol[KeyType <: IndexedRecord, ValueType <: IndexedReco
     elapsed_time_ms = System.currentTimeMillis() - start_ms;
     println("elapsed time (sec): " + elapsed_time_ms / 1000.0)
     println
+
+    if (deleteTemp) nstemp.delete
   }
 
   /**

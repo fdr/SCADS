@@ -10,12 +10,15 @@ case class IntSeqRec(var f1: List[Int]) extends AvroRecord
 
 // mapper, combiner, reducer for building index for characters.
 class CharIndexMapper extends Mapper {
-  def map(key: AvroRecord, value: AvroRecord, context: MapperContext): Unit = {
-    val keyInt = key.asInstanceOf[IntRec].f1
-    val valueStr = value.asInstanceOf[StringRec].f1
-    // Output (char, rowid)
-    valueStr.foreach(c => context.collect(StringRec(c.toString.toLowerCase),
-                                          IntRec(keyInt)))
+  def map(data: Seq[(AvroRecord, AvroRecord)], context: MapperContext) = {
+    data.foreach {
+      case (key, value) =>
+      val keyInt = key.asInstanceOf[IntRec].f1
+      val valueStr = value.asInstanceOf[StringRec].f1
+      // Output (char, rowid)
+      valueStr.foreach(c => context.collect(StringRec(c.toString.toLowerCase),
+                                            IntRec(keyInt)))
+    }
   }
 }
 class CharIndexCombiner extends Reducer {
@@ -39,12 +42,15 @@ class CharIndexReducer extends Reducer {
 
 // mapper, reducer for character counting.
 class CharCounterMapper extends Mapper {
-  def map(key: AvroRecord, value: AvroRecord, context: MapperContext): Unit = {
-    val keyInt = key.asInstanceOf[IntRec].f1
-    val valueStr = value.asInstanceOf[StringRec].f1
-    // Output (char, rowid)
-    valueStr.foreach(c => context.collect(StringRec(c.toString.toLowerCase),
-                                          IntRec(keyInt)))
+  def map(data: Seq[(AvroRecord, AvroRecord)], context: MapperContext) = {
+    data.foreach {
+      case (key, value) =>
+      val keyInt = key.asInstanceOf[IntRec].f1
+      val valueStr = value.asInstanceOf[StringRec].f1
+      // Output (char, rowid)
+      valueStr.foreach(c => context.collect(StringRec(c.toString.toLowerCase),
+                                            IntRec(keyInt)))
+    }
   }
 }
 class CharCounterReducer extends Reducer {

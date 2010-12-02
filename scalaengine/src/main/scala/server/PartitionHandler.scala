@@ -268,6 +268,8 @@ class PartitionHandler(
           val valueReader = new SpecificDatumReader[SpecificRecordBase](
               valueTypeClass.newInstance().asInstanceOf[AvroRecord].getSchema)
 
+          var batchList = List[(AvroRecord, AvroRecord)]()
+          var batchLength = 0
           iterateOverRange(minKey, maxKey)((key, value, _) => {
             // TODO(rxin): reuse decoder (replace the 3rd argument null).
             val keyObj = keyReader.read(null,
@@ -277,8 +279,17 @@ class PartitionHandler(
             val valueObj = valueReader.read(null,
                 decoderFactory.createBinaryDecoder(valueBinaryData, null))
                 .asInstanceOf[AvroRecord]
-            mapper.map(keyObj, valueObj, context)
+            batchList = Tuple2(keyObj, valueObj) :: batchList
+            batchLength += 1
+            if (batchLength > 25) {
+              mapper.map(batchList, context)
+              batchList = List[(AvroRecord, AvroRecord)]()
+              batchLength = 0
+            }
           })
+          if (batchLength > 0) {
+            mapper.map(batchList, context)
+          }
 
           val resultContext = combinerClosure match {
             case None => context
@@ -299,28 +310,27 @@ class PartitionHandler(
             val valueWriter = new SpecificDatumWriter[AvroRecord](
                 resultContext.output.head._2.head.getSchema)
 
-            var batch = ListBuffer[(MapResultKey, MapResultValue)]()
+            var resultList = List[(MapResultKey, MapResultValue)]()
+            var resultListLength = 0
             resultContext.output.foreach(t => {
               val serializedKey = encodeData(keyWriter, t._1)
               (t._2 zip (1 to t._2.length)).foreach(v => {
                  val serializedValue = encodeData(valueWriter, v._1)
-                 // TODO: need more efficient put.
-                 //       is there a faster way to do this?
-                 batch += Tuple2(MapResultKey(Hash.hashMurmur2(serializedKey),
-                                              Some(serializedKey),
-                                              mapperId, v._2),
-                                 MapResultValue(serializedValue))
-                 if (batch.length > 200) {
-                   // write the batch out
-                   ns ++= batch
-                   batch.clear()
+                 resultList = Tuple2(MapResultKey(Hash.hashMurmur2(serializedKey),
+                                                  Some(serializedKey),
+                                                  mapperId, v._2),
+                                     MapResultValue(serializedValue)) :: resultList
+                 resultListLength += 1
+                 if (resultListLength > 1000) {
+                   ns ++= resultList
+                   resultList = List[(MapResultKey, MapResultValue)]()
+                   resultListLength = 0
                  }
               })
             })
-            if (batch.length > 0) {
-              ns ++= batch
-              batch.clear()
-            }
+            if (resultListLength > 0) {
+               ns ++= resultList
+             }
           }
 
           // Reply with an ACK when done.
@@ -398,22 +408,23 @@ class PartitionHandler(
             val outputValueSchema = context.output.head._2.head.getSchema
             val ns = cluster.getNamespace(nsResult, outputKeySchema,
                                           outputValueSchema)
-            var batch = ListBuffer[(GenericData.Record, GenericData.Record)]()
+            var resultList = List[(GenericData.Record, GenericData.Record)]()
+            var resultListLength = 0
             context.output.foreach(t => {
               // TODO: HACK: toGenericRecord is a hack (inefficient) to be able
               //       to put an AvroRecord.
-              // TODO: better way to batch puts?
-              batch += Tuple2(new RichIndexedRecord(t._1).toGenericRecord,
-                              new RichIndexedRecord(t._2.head).toGenericRecord)
-              if (batch.length > 200) {
+              resultList = Tuple2(new RichIndexedRecord(t._1).toGenericRecord,
+                                  new RichIndexedRecord(t._2.head).toGenericRecord) :: resultList
+              resultListLength += 1
+              if (resultListLength > 1000) {
                 // write the batch out
-                ns ++= batch
-                batch.clear()
+                ns ++= resultList
+                resultList = List[(GenericData.Record, GenericData.Record)]()
+                resultListLength = 0
               }
             })
-            if (batch.length > 0) {
-              ns ++= batch
-              batch.clear()
+            if (resultListLength > 0) {
+              ns ++= resultList
             }
           }
 

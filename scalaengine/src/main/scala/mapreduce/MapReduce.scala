@@ -14,7 +14,7 @@ trait Context {
 
 abstract class ClientContext(cluster: ScadsCluster) {
   // map of namespace name to scads client.
-  val clientCache = HashMap.empty[String, AnyRef ]
+  val clientCache = HashMap.empty[String, AnyRef]
 
   def getKey[KeyType <: AvroRecord, ValueType <: AvroRecord]
       (nsName: String, key: KeyType)
@@ -27,9 +27,6 @@ abstract class ClientContext(cluster: ScadsCluster) {
   }
 }
 
-/**
- * A quick implementation of the MapperContext class.
- */
 class MapperContext(cluster: ScadsCluster)
     extends ClientContext(cluster) with Context {
     
@@ -56,7 +53,8 @@ class ReducerContext(cluster: ScadsCluster)
 }
 
 trait Mapper {
-  def map(key: AvroRecord, value: AvroRecord, context: MapperContext): Unit
+  // data input is a sequence of key, value pairs.
+  def map(data: Seq[(AvroRecord, AvroRecord)], context: MapperContext): Unit
 }
 
 trait Reducer {
