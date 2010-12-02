@@ -9,4 +9,3 @@ import edu.berkeley.cs.avro.runtime._
 import java.io.File
 
 import edu.berkeley.cs.scads.perf._
-import scadr.cardinality.CardinalityExperiment
