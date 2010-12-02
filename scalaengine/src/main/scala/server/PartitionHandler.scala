@@ -122,9 +122,11 @@ class PartitionHandler(
   /**
    * True iff a particular (non-null) key is bounded by [startKey, endKey)
    */
-  @inline private def isInRange(key: Array[Byte]) =
-    startKey.map(sk => compare(sk, key) <= 0).getOrElse(true) &&
-    endKey.map(ek => compare(ek, key) > 0).getOrElse(true)
+  @inline private def isInRange(key: Array[Byte]) = true //just for the moment because of the Hash partitioning
+  //TODO: I turned of the check, for the hash partitiong. Though, this is really dangerous and can cause hard to find bugs.
+  //We should make the starte aware of the routing, and fix it as soon as possible.
+  //  startKey.map(sk => compare(sk, key) <= 0).getOrElse(true) &&
+  //  endKey.map(ek => compare(ek, key) > 0).getOrElse(true)
 
   /**
    * True iff startKey <= key
@@ -408,18 +410,16 @@ class PartitionHandler(
             val outputValueSchema = context.output.head._2.head.getSchema
             val ns = cluster.getNamespace(nsResult, outputKeySchema,
                                           outputValueSchema)
-            var resultList = List[(GenericData.Record, GenericData.Record)]()
+            var resultList = List[(IndexedRecord, IndexedRecord)]()
             var resultListLength = 0
             context.output.foreach(t => {
-              // TODO: HACK: toGenericRecord is a hack (inefficient) to be able
-              //       to put an AvroRecord.
-              resultList = Tuple2(new RichIndexedRecord(t._1).toGenericRecord,
-                                  new RichIndexedRecord(t._2.head).toGenericRecord) :: resultList
+              resultList = Tuple2(t._1.asInstanceOf[IndexedRecord],
+                                  t._2.head.asInstanceOf[IndexedRecord]) :: resultList
               resultListLength += 1
               if (resultListLength > 1000) {
                 // write the batch out
                 ns ++= resultList
-                resultList = List[(GenericData.Record, GenericData.Record)]()
+                resultList = List[(IndexedRecord, IndexedRecord)]()
                 resultListLength = 0
               }
             })

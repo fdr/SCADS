@@ -22,7 +22,7 @@ abstract class ClientContext(cluster: ScadsCluster) {
        valueType: Manifest[ValueType]): Option[ValueType] = {
     val ns = clientCache.getOrElseUpdate(nsName,
         cluster.getNamespace[KeyType, ValueType]
-        (nsName)).asInstanceOf[Namespace[KeyType, ValueType]]
+        (nsName)).asInstanceOf[Namespace[KeyType, ValueType, ValueType, (KeyType, ValueType)]]
     ns.get(key).asInstanceOf[Option[ValueType]]
   }
 }

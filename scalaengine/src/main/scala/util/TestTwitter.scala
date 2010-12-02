@@ -138,9 +138,7 @@ class RetweetGraphReducer extends Reducer {
 
 class TestTwitterMapper {
   def run() {
-    val storageHandler = TestScalaEngine.getTestHandler(4)
-
-    val client = new ScadsCluster(storageHandler.head.root)
+    val client = TestScalaEngine.newScadsCluster(4)
     val storageServer = client.getAvailableServers
 
     val ns1 = client.createNamespace[LongRec, StringRec](
@@ -180,7 +178,8 @@ class TestTwitterMapper {
     var elapsed_time_ms = System.currentTimeMillis() - start_ms;
     println("\ntotal elapsed time (sec): " + elapsed_time_ms / 1000.0)
     println("total tweets: " + total_tweets)
-    ns1.dumpDistribution
+    // dumpDistribution fails for a strange comm reason.
+//    ns1.dumpDistribution
 
     // Create output namespace
     var nsOutput = client.createNamespace[LongRec, LongSeqRec](
@@ -196,7 +195,7 @@ class TestTwitterMapper {
     ns3.executeMapReduce[LongRec, LongSeqRec](
         None, None, classOf[RetweetMapper],
         Some(classOf[RetweetCombiner]), classOf[RetweetReducer],
-        "retweetIndex")
+        "retweetIndex", true)
     elapsed_time_ms = System.currentTimeMillis() - start_ms;
 
     println("*****************************")
@@ -225,7 +224,7 @@ class TestTwitterMapper {
     ns4.executeMapReduce[LongRec, RetweetGraphRec](
         None, None, classOf[RetweetGraphMapper],
         None, classOf[RetweetGraphReducer],
-        "retweetGraph")
+        "retweetGraph", true)
     elapsed_time_ms = System.currentTimeMillis() - start_ms;
 
     println("*****************************")

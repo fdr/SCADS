@@ -64,11 +64,8 @@ class CharCounterReducer extends Reducer {
 
 class TestScadsMapper {
   def run() {
-    // Creates 3 local storage server
-    val storageHandler = TestScalaEngine.getTestHandler(2)
-
     // Creates a local client
-    val client = new ScadsCluster(storageHandler.head.root)
+    val client = TestScalaEngine.newScadsCluster(2)
     val storageServer = client.getAvailableServers
 
     // Creates a partition and replicates it across all three storage servers

@@ -7,7 +7,7 @@ import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
 
 object TwitterLoader {
-  def loadFile(filename: String, ns: Namespace[LongRec, StringRec]) = {
+  def loadFile(filename: String, ns: SpecificNamespace[LongRec, StringRec]) = {
     var total_tweets = 0
     var batch = List[(LongRec, StringRec)]()
     var batchLength = 0
