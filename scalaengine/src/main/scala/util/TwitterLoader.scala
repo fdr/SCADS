@@ -14,9 +14,9 @@ object TwitterLoader {
   def fromGZIPfile(filename:String):Source = {
     Source.fromInputStream(new GZIPInputStream(new FileInputStream(filename)))
   }
-  def loadFile(filename: String, ns: SpecificNamespace[LongRec, StringRec]) = {
+  def loadFile(filename: String, ns: SpecificNamespace[HashLongRec, StringRec]) = {
     var total_tweets = 0
-    var batch = List[(LongRec, StringRec)]()
+    var batch = List[(HashLongRec, StringRec)]()
     var batchLength = 0
     var minVal = Long.MaxValue
     var maxVal:Long = 0
@@ -33,13 +33,14 @@ object TwitterLoader {
           minVal = longVal
         if (longVal > maxVal)
           maxVal = longVal
-        batch = Tuple2(LongRec(longVal), StringRec(line)) :: batch
+        batch = Tuple2(HashLongRec(Hash.hashMurmur2(longVal.toString.toArray.map(_.toByte)),
+                                   longVal), StringRec(line)) :: batch
         batchLength += 1
         if (batchLength >= 1000) {
           // write the batch out
           ns ++= batch
           total_tweets = total_tweets + batchLength
-          batch = List[(LongRec, StringRec)]()
+          batch = List[(HashLongRec, StringRec)]()
           batchLength = 0
           println(filename + ": inserted " + total_tweets + " tweets")
         }
@@ -51,6 +52,6 @@ object TwitterLoader {
       println(filename + ": inserted " + total_tweets + " tweets")
     }
     println("min: " + minVal + " , max: " + maxVal)
-    total_tweets
+    (total_tweets, minVal, maxVal)
   }
 }

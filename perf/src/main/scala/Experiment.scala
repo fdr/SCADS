@@ -15,7 +15,7 @@ import net.lag.logging.Logger
 
 class ExperimentalScadsCluster(root: ZooKeeperProxy#ZooKeeperNode) extends ScadsCluster(root) {
 
-  val logger = Logger()
+  override val logger = Logger()
 
   def blockUntilReady(clusterSize: Int): Unit = {
     while(getAvailableServers.size < clusterSize) {

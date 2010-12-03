@@ -18,7 +18,7 @@ case class RetweetGraphRec(var id: Long,
     extends AvroRecord
 
 class RetweetMapper extends Mapper {
-  @inline def singleMap(key: LongRec, value: StringRec, context: MapperContext) = {
+  @inline def singleMap(key: HashLongRec, value: StringRec, context: MapperContext) = {
     val id = key.f1
     val tweet = value.f1
     val tweetMap = JsonParser.parseJson(tweet)
@@ -54,7 +54,7 @@ class RetweetMapper extends Mapper {
   }
   def map(data: Seq[(AvroRecord, AvroRecord)], context: MapperContext) = {
     data.foreach {
-      case (key, value) => singleMap(key.asInstanceOf[LongRec],
+      case (key, value) => singleMap(key.asInstanceOf[HashLongRec],
                                      value.asInstanceOf[StringRec], context)
     }
   }
@@ -102,8 +102,8 @@ class RetweetGraphMapper extends Mapper {
     val id = key.f1
     val children = value.f1
 
-    val isTopMost = context.getKey[LongRec, StringRec](
-        "tweets", LongRec(id)) match {
+    val isTopMost = context.getKey[HashLongRec, StringRec](
+        "tweets", HashLongRec(Hash.hashMurmur2(id.toString.toArray.map(_.toByte)), id)) match {
 //      case None => false
       case None => true
       case Some(t) => 
@@ -142,13 +142,19 @@ class TestTwitterMapper {
   def run() {
     val client = TestScalaEngine.newScadsCluster(4)
     val storageServer = client.getAvailableServers
+    val numServers = storageServer.length
 
-    val ns1 = client.createNamespace[LongRec, StringRec](
+    val partitionList = None :: (1 until numServers).map(
+            x => Some(HashLongRec(0xffffffffL / numServers * x, 0))
+        ).toList zip storageServer.map(List(_))
+    val ns1 = client.createNamespace[HashLongRec, StringRec](
         "tweets",
-        List((None, List(storageServer(0))),
-             (LongRec(7914403051L), List(storageServer(1))),
-             (LongRec(7922702502L), List(storageServer(2))),
-             (LongRec(7931001952L), List(storageServer(3)))))
+        partitionList)
+//        List((None, List(storageServer(0))),
+//             (LongRec(7914403051L), List(storageServer(1))),
+//             (LongRec(7922702502L), List(storageServer(2))),
+//             (LongRec(7931001952L), List(storageServer(3)))))
+
 //        List((None, List(storageServer(0)))))
 //7914403051
 //7922702502
@@ -160,8 +166,9 @@ class TestTwitterMapper {
 
     // min: 7906103600L , max: 7939301404L
     val filenames =
-//      "../../data_twitter/raw.0001.txt.gz" ::
-
+      "../../data_twitter/raw.0001.txt.gz" ::
+//      "../../data_twitter/raw.bad.txt.gz" ::
+/*
       "../../data_twitter/raw.0014.txt.gz" ::
       "../../data_twitter/raw.0015.txt.gz" ::
       "../../data_twitter/raw.0016.txt.gz" ::
@@ -174,11 +181,12 @@ class TestTwitterMapper {
       "../../data_twitter/raw.0023.txt.gz" ::
       "../../data_twitter/raw.0024.txt.gz" ::
       "../../data_twitter/raw.0025.txt.gz" ::
+*/
       List()
 
     var start_ms = System.currentTimeMillis()
     var total_tweets = 0
-    filenames.foreach(f => total_tweets += TwitterLoader.loadFile(f, ns1))
+    filenames.foreach(f => total_tweets += TwitterLoader.loadFile(f, ns1)._1)
     var elapsed_time_ms = System.currentTimeMillis() - start_ms;
     println("\ntotal elapsed time (sec): " + elapsed_time_ms / 1000.0)
     println("total tweets: " + total_tweets)
@@ -196,7 +204,7 @@ class TestTwitterMapper {
 
     // Execute map/reduce
     start_ms = System.currentTimeMillis()
-    val ns3 = client.getNamespace[LongRec, StringRec]("tweets")
+    val ns3 = client.getNamespace[HashLongRec, StringRec]("tweets")
     ns3.executeMapReduce[LongRec, LongSeqRec](
         None, None, classOf[RetweetMapper],
         Some(classOf[RetweetCombiner]), classOf[RetweetReducer],
