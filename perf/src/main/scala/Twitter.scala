@@ -16,15 +16,21 @@ case class DataLoader(var numServers: Int, var numLoaders: Int) extends DataLoad
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
-    val servers = cluster.getAvailableServers
 
     val clientId = coordination.registerAndAwait("clientsStart", numLoaders)
+
+    val servers = cluster.getAvailableServers
+    println(servers)
+
     if (clientId == 0) {
       cluster.blockUntilReady(numServers)
 
       val partitionList = None :: (1 until numServers).map(
               x => Some(HashLongRec(0xffffffffL / numServers * x, 0))
-              ).toList zip servers.map(List(_))
+              ).toList zip servers.map(List(_)) 
+
+      println(partitionList)
+
       cluster.createNamespace[HashLongRec, StringRec]("tweets", partitionList)
 
       // create namespaces to store clientId to min/max id.
@@ -40,7 +46,7 @@ case class DataLoader(var numServers: Int, var numLoaders: Int) extends DataLoad
 
     // LARGE files start from 2428
     // smallest file is 1
-    val startFile = 1
+    val startFile = 5
     val numFilesToLoad = 1
     val filenameBase = "/work/marmbrus/twitter/ec2/"
 
