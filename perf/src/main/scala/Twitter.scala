@@ -28,7 +28,8 @@ case class DataLoader(var numServers: Int, var numLoaders: Int) extends DataLoad
     val ns = cluster.getNamespace[LongRec, StringRec]("tweets")
 
     // LARGE files start from 2428
-    val startFile = 2428
+    // smallest file is 1
+    val startFile = 1
     val numFilesToLoad = 1
     val filenameBase = "/work/marmbrus/twitter/ec2/"
 

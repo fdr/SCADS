@@ -1,19 +1,31 @@
 package edu.berkeley.cs.scads.util
+package twitter
 
 import scala.io.Source
+
+import java.io.FileInputStream
+import java.util.zip.GZIPInputStream
 
 import edu.berkeley.cs.avro.marker.AvroRecord
 import edu.berkeley.cs.scads.comm._
 import edu.berkeley.cs.scads.storage._
 
 object TwitterLoader {
+  def fromGZIPfile(filename:String):Source = {
+    Source.fromInputStream(new GZIPInputStream(new FileInputStream(filename)))
+  }
   def loadFile(filename: String, ns: SpecificNamespace[LongRec, StringRec]) = {
     var total_tweets = 0
     var batch = List[(LongRec, StringRec)]()
     var batchLength = 0
     var minVal = Long.MaxValue
     var maxVal:Long = 0
-    for (line <- Source.fromFile(filename).getLines()) {
+    val inputSource = if (filename.endsWith(".gz")) {
+      fromGZIPfile(filename)
+    } else {
+      Source.fromFile(filename)
+    }
+    for (line <- inputSource.getLines) {
       val tweet = JsonParser.parseJson(line)
       if (tweet.contains("id")) {
         val longVal = tweet("id").asInstanceOf[BigInt].longValue

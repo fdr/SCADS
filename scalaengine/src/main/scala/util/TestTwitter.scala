@@ -8,6 +8,8 @@ import edu.berkeley.cs.scads.mapreduce.{Mapper, MapperContext,
                                         Reducer, ReducerContext}
 import edu.berkeley.cs.scads.storage._
 
+import twitter._
+
 case class LongSeqRec(var f1: List[Long]) extends AvroRecord
 case class RetweetGraphRec(var id: Long,
                            var depth: Long,
@@ -158,18 +160,20 @@ class TestTwitterMapper {
 
     // min: 7906103600L , max: 7939301404L
     val filenames =
-      "../../data_twitter/raw.0014.txt" ::
-      "../../data_twitter/raw.0015.txt" ::
-      "../../data_twitter/raw.0016.txt" ::
-      "../../data_twitter/raw.0017.txt" ::
-      "../../data_twitter/raw.0018.txt" ::
-      "../../data_twitter/raw.0019.txt" ::
-      "../../data_twitter/raw.0020.txt" ::
-      "../../data_twitter/raw.0021.txt" ::
-      "../../data_twitter/raw.0022.txt" ::
-      "../../data_twitter/raw.0023.txt" ::
-      "../../data_twitter/raw.0024.txt" ::
-      "../../data_twitter/raw.0025.txt" ::
+//      "../../data_twitter/raw.0001.txt.gz" ::
+
+      "../../data_twitter/raw.0014.txt.gz" ::
+      "../../data_twitter/raw.0015.txt.gz" ::
+      "../../data_twitter/raw.0016.txt.gz" ::
+      "../../data_twitter/raw.0017.txt.gz" ::
+      "../../data_twitter/raw.0018.txt.gz" ::
+      "../../data_twitter/raw.0019.txt.gz" ::
+      "../../data_twitter/raw.0020.txt.gz" ::
+      "../../data_twitter/raw.0021.txt.gz" ::
+      "../../data_twitter/raw.0022.txt.gz" ::
+      "../../data_twitter/raw.0023.txt.gz" ::
+      "../../data_twitter/raw.0024.txt.gz" ::
+      "../../data_twitter/raw.0025.txt.gz" ::
       List()
 
     var start_ms = System.currentTimeMillis()
@@ -179,7 +183,8 @@ class TestTwitterMapper {
     println("\ntotal elapsed time (sec): " + elapsed_time_ms / 1000.0)
     println("total tweets: " + total_tweets)
     // dumpDistribution fails for a strange comm reason.
-//    ns1.dumpDistribution
+    // CRI [20101202-17:11:15.087] comm: Got message for an unknown service: {"num": 837}
+    ns1.dumpDistribution
 
     // Create output namespace
     var nsOutput = client.createNamespace[LongRec, LongSeqRec](
