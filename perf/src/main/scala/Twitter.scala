@@ -12,7 +12,7 @@ import edu.berkeley.cs.avro.marker._
 
 import org.apache.zookeeper.CreateMode
 
-case class DataLoader(var numServers: Int, var numLoaders: Int, var numFiles: Int) extends DataLoadingAvroClient with AvroRecord {
+case class DataLoader(var numServers: Int, var numLoaders: Int, var startFile: Int, var numFiles: Int) extends DataLoadingAvroClient with AvroRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
@@ -42,7 +42,7 @@ case class DataLoader(var numServers: Int, var numLoaders: Int, var numFiles: In
 
     // LARGE files start from 2428
     // smallest file is 1
-    val startFile = 5
+    //val startFile = 1669
     val filenameBase = "/work/marmbrus/twitter/ec2/"
 
 
