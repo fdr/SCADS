@@ -19,9 +19,6 @@ case class DataLoader(var numServers: Int, var numLoaders: Int, var numFiles: In
 
     val clientId = coordination.registerAndAwait("clientsStart", numLoaders)
 
-    val servers = cluster.getAvailableServers
-    println(servers)
-
     if (clientId == 0) {
       cluster.blockUntilReady(numServers)
       val servers = cluster.getAvailableServers
@@ -29,8 +26,6 @@ case class DataLoader(var numServers: Int, var numLoaders: Int, var numFiles: In
       val partitionList = None :: (1 until numServers).map(
               x => Some(HashLongRec(0xffffffffL / numServers * x, 0))
               ).toList zip servers.map(List(_)) 
-
-      println(partitionList)
 
       cluster.createNamespace[HashLongRec, StringRec]("tweets", partitionList)
 
@@ -87,7 +82,6 @@ case class RetweetMRClient(var numClients: Int) extends ReplicatedAvroClient wit
     numClients = 1
 
     val clientId = coordination.registerAndAwait("clientsStart", numClients)
-
 
     val dataLoader = classOf[DataLoader].newInstance.parse(new String(clusterRoot.awaitChild("clusterReady").data))
     val numServers = dataLoader.numServers
