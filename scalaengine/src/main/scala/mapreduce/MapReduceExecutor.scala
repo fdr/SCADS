@@ -20,7 +20,6 @@ import scala.concurrent.ManagedBlocker
 
 import edu.berkeley.cs.scads.comm.RemoteClassClosure
 
-
 trait MapReduceExecutor[KeyType <: IndexedRecord, 
                        ValueType <: IndexedRecord, 
                        RecordType <: IndexedRecord,

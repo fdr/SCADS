@@ -12,15 +12,15 @@ import edu.berkeley.cs.avro.marker._
 
 import org.apache.zookeeper.CreateMode
 
-case class DataLoader(var numServers: Int, var numLoaders: Int) extends DataLoadingAvroClient with AvroRecord {
+case class DataLoader(var numServers: Int, var numLoaders: Int, var numFiles: Int) extends DataLoadingAvroClient with AvroRecord {
   def run(clusterRoot: ZooKeeperProxy#ZooKeeperNode): Unit = {
     val coordination = clusterRoot.getOrCreate("coordination/loaders")
     val cluster = new ExperimentalScadsCluster(clusterRoot)
-    val servers = cluster.getAvailableServers
 
     val clientId = coordination.registerAndAwait("clientsStart", numLoaders)
     if (clientId == 0) {
       cluster.blockUntilReady(numServers)
+      val servers = cluster.getAvailableServers
 
       val partitionList = None :: (1 until numServers).map(
               x => Some(HashLongRec(0xffffffffL / numServers * x, 0))
@@ -40,17 +40,16 @@ case class DataLoader(var numServers: Int, var numLoaders: Int) extends DataLoad
 
     // LARGE files start from 2428
     // smallest file is 1
-    val startFile = 1
-    val numFilesToLoad = 1
+    val startFile = 5
     val filenameBase = "/work/marmbrus/twitter/ec2/"
 
 
     var minId:Long = Long.MaxValue
     var maxId:Long = 0
 
-    (0 until numFilesToLoad).view.map(
+    (0 until numFiles).view.map(
         numLoaders*_ + startFile + clientId).filter(
-            _ < (startFile + numFilesToLoad)).foreach(num => {
+            _ < (startFile + numFiles)).foreach(num => {
       val filename = filenameBase + "raw." + "%04d".format(num) + ".txt.gz"
       logger.info("Loader: " + clientId + ", loading file: " + filename)
       val loadStats = twitter.TwitterLoader.loadFile(filename, ns)
