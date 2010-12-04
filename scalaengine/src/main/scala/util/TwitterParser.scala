@@ -30,7 +30,7 @@ object JsonParser {
       } catch {
         case jpe: JsonParseException =>
           parsable = false
-          println("Found an unparsable token\n");
+//          println("Found an unparsable token");
       }
 
       if (running && parsable) {
