@@ -56,17 +56,16 @@ case class DataLoader(var numServers: Int, var numLoaders: Int, var startFile: I
       logger.info("Loader: " + clientId + ", loading file: " + filename)
       val loadStats = twitter.TwitterLoader.loadFile(filename, ns)
       println("tweets: " + loadStats._1 + ", minId: " + loadStats._2 + ", maxId: " + loadStats._3)
-      if (minId < loadStats._1)
-        minId = loadStats._1
-      if (maxId > loadStats._2)
-        maxId = loadStats._2
+      if (minId > loadStats._2)
+        minId = loadStats._2
+      if (maxId < loadStats._3)
+        maxId = loadStats._3
     })
 
     nsMin.put(IntRec(clientId), LongRec(minId))
     nsMax.put(IntRec(clientId), LongRec(maxId))
 
     coordination.registerAndAwait("endWrite", numLoaders)
-
     if (clientId == 0) {
       clusterRoot.createChild("clusterReady", data = this.toJson.getBytes)
     }
@@ -93,7 +92,6 @@ case class RetweetMRClient(var numClients: Int) extends ReplicatedAvroClient wit
     val nsMax = cluster.getNamespace[IntRec, LongRec]("tweetIdMax")
     val minId = nsMin.getRange(None, None).map(_._2.f1).min
     val maxId = nsMax.getRange(None, None).map(_._2.f1).max
-
 
     val ns = cluster.getNamespace[HashLongRec, StringRec]("tweets")
 
