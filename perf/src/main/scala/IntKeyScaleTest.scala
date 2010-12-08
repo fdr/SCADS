@@ -62,8 +62,6 @@ case class DataLoader(var numServers: Int, var numLoaders: Int, var recsPerServe
 
     if (clientId == 0)
       clusterRoot.createChild("clusterReady", data = this.toJson.getBytes)
-
-    System.exit(0)
   }
 }
 
