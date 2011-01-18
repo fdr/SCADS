@@ -12,12 +12,13 @@ case class Word(var wordid: Int) extends AvroPair {
   //assign PK int to do randomness, but need to provide int when loading in words
   var word: String = _
   var definition: String = _
+  var wordlist: String = _
 }
-
+/*
 case class WordListWord(var wordlist: String, var word: Int) extends AvroPair {
     var v = 1
 }
-
+*/
 case class WordList(var name: String) extends AvroPair {
     var v = 1
 }
@@ -56,39 +57,49 @@ class GraditClient(val cluster: ScadsCluster, executor: QueryExecutor) {
   lazy val books = cluster.getNamespace[Book]("books").asInstanceOf[Namespace]
   lazy val wordcontexts = cluster.getNamespace[WordContext]("wordcontexts").asInstanceOf[Namespace]
   lazy val wordlists = cluster.getNamespace[WordList]("wordlists").asInstanceOf[Namespace]
-  lazy val wordlistwords = cluster.getNamespace[WordListWord]("wordlistwords").asInstanceOf[Namespace]
-
+  //lazy val wordlistwords = cluster.getNamespace[WordListWord]("wordlistwords").asInstanceOf[Namespace]
 
   // findWord
   // Primary key lookup for word
-
+  
   val findWord = words.where("words.wordid".a === (0.?)).toPiql("findWord")
-
+  
   //findWordByWord
   // Find a word by its actual string word (not wordid)
-
-  //val findWordByWord = words.where("words.word".a === (0.?)).toPiql
-
+  
+  /*val findWordByWord = (
+        words
+            .where("words.word".a === (0.?))
+            .limit(1)
+  ).toPiql*/
+  
   // findWordList
   // Primary key lookup for wordlist
-
-  //val findWordList = wordlists.where("wordlists.name".a === (0.?)).toPiql
-
+  
+  val findWordList = wordlists.where("wordlists.name".a === (0.?)).toPiql("findWords")
+  
   // contextsForWord
   // Finds all contexts for a particular word given
-
-    val contextsForWord = (
+  
+  val contextsForWord = (
         wordcontexts
             .where("wordcontexts.word".a === (0.?))
             .limit(50)
-    ).toPiql("contextsForWord")
-
+    ).toPiql("contextesForWord")
+  
   // wordsFromWordlist
+  /*
     val wordsFromWordList = (
         wordlistwords
             .where("wordlistwords.wordlist".a === (0.?))
             .limit(50)
             .join(words)
-            .where("words.wordid".a === "wordlistwords.word".a)
+            .where("words.wordids".a === "wordlistwords.word".a)
+    ).toPiql
+    */
+    val wordsFromWordList = (
+        words
+            .where("words.wordlist".a === (0.?))
+            .limit(50)
     ).toPiql("wordsFromWordList")
 }
